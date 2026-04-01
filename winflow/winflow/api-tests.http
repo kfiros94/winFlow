@@ -1,0 +1,7 @@
+### 1. View all live matches
+GET http://localhost:8080/api/matches
+
+###
+
+### 2. Create the first user profile!
+POST http://localhost:8080/api/users/register?username=kfir&email=kfir@test.com
