@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class GuessService {
@@ -60,5 +61,60 @@ public class GuessService {
 
         return guessRepository.save(newGuess);
 
+    }
+
+    /**
+     * Resolves a match, calculates the winner, and pays out the coins!
+     */
+    @Transactional
+    public void resolveMatchAndPayWinners(Long matchId, Integer homeScore, Integer awayScore) {
+        // 1. Find the match and update its status
+        SportMatch match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new RuntimeException("Match not found!"));
+        if (match.getStatus() == SportMatch.MatchStatus.FINISHED) {
+            throw new RuntimeException("This match has already been resloved!");
+        }
+
+        match.setHomeScore(homeScore);
+        match.setAwayScore(awayScore);
+        match.setStatus(SportMatch.MatchStatus.FINISHED);
+        matchRepository.save(match);
+
+        // 2. determine who won in real life
+        Guess.PredictionType actualWinner;
+        if (homeScore > awayScore) {
+            actualWinner = Guess.PredictionType.HOME_WIN;
+        } else if (awayScore > homeScore) {
+            actualWinner = Guess.PredictionType.AWAY_WIN;
+        } else {
+            actualWinner = Guess.PredictionType.DRAW;
+        }
+
+        //3. find all bets for this match
+        List<Guess> matchBets = guessRepository.findBySportMatchId(matchId);
+
+        // 4. Loop through the bets and pay the winners!
+        for (Guess bet : matchBets){
+            if (bet.getPredictionOutcome() == actualWinner) {
+                bet.setStatus(Guess.GuessStatus.WIN);
+
+                // Multiply their bet amount by the exact odds they locked in
+                Double multiplier = (actualWinner == Guess.PredictionType.HOME_WIN)
+                        ? match.getHomeWinOdds()
+                        : match.getAwayWinOdds();
+                Double winnings = bet.getCoinAmount() * multiplier;
+                bet.setRewardAmount(winnings);
+
+                // Add the new coins to the user's wallet
+                AppUser user = bet.getUser();
+                user.setCoinBalance(user.getCoinBalance() + winnings);
+                userRepository.save(user);
+            } else {
+                // They lost the bet
+                bet.setStatus(Guess.GuessStatus.LOSS);
+                bet.setRewardAmount(0.0);
+            }
+            guessRepository.save(bet);
+        }
     }
 }

@@ -22,4 +22,13 @@ public class AppUserController {
     public AppUser registerUser(@RequestParam String username, @RequestParam String email) {
         return userService.createNewUser(username, email);
     }
+
+    /**
+     * Fetches a user's profile and current coin balance!
+     * Example URL: GET http://localhost:8080/api/users/1
+     */
+    @GetMapping("/{id}")
+    public AppUser getUserProfile(@PathVariable Long id) {
+        return userService.getUserById(id);
+    }
 }
