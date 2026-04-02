@@ -5,6 +5,7 @@ import com.winflow.winflow.entity.Guess;
 import com.winflow.winflow.service.GuessService;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/guesses")
 public class GuessController {

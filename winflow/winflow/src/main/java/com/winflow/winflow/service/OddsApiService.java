@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -17,34 +18,34 @@ public class OddsApiService {
     private final WebClient webClient;
     private final String apiKey;
 
-    // We inject the WebClient we built in the config, and the API key from our properties file
     public OddsApiService(WebClient oddsWebClient, @Value("${odds.api.key}") String apiKey) {
         this.webClient = oddsWebClient;
         this.apiKey = apiKey;
     }
 
     /**
-     * Reaches out to the internet to grab live NBA games and betting odds
+     * Fetches odds for any sport key supported by The Odds API.
+     * e.g. "basketball_nba", "soccer_epl", "soccer_spain_la_liga"
      */
-    public List<MatchOddsDTO> fetchLiveNBAOdds() {
-        log.info("Fetching live NBA matches from The Odds API...");
+    public List<MatchOddsDTO> fetchOdds(String sportKey) {
+        log.info("Fetching odds for sport: {}", sportKey);
+        try {
+            List<MatchOddsDTO> result = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path(sportKey + "/odds/")
+                            .queryParam("apiKey", apiKey.trim())
+                            .queryParam("regions", "us")
+                            .queryParam("markets", "h2h")
+                            .build())
+                    .retrieve()
+                    .bodyToFlux(MatchOddsDTO.class)
+                    .collectList()
+                    .block();
 
-        // THE MAGIC PRINT STATEMENT: This will expose any hidden spaces or quotes!
-        System.out.println("====== DEBUGGING API KEY ======");
-        System.out.println("DEBUG KEY: [" + apiKey + "]");
-        System.out.println("===============================");
-
-        // This sends a GET request to: https://api.the-odds-api.com/v4/sports/basketball_nba/odds/...
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("basketball_nba/odds/")
-                        .queryParam("apiKey", apiKey.trim()) // .trim() cleans the key before sending!
-                        .queryParam("regions", "us") // We use US bookmakers (like DraftKings) for odds
-                        .queryParam("markets", "h2h") // Head-to-Head (Home vs Away)
-                        .build())
-                .retrieve()
-                .bodyToFlux(MatchOddsDTO.class) // Convert the JSON array into a list of our Java Records!
-                .collectList()
-                .block(); // Wait for the network call to finish
+            return result != null ? result : Collections.emptyList();
+        } catch (Exception e) {
+            log.error("FAILED to fetch odds for '{}': {} — {}", sportKey, e.getClass().getSimpleName(), e.getMessage());
+            return Collections.emptyList();
+        }
     }
 }

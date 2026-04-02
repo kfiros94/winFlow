@@ -1,9 +1,12 @@
 package com.winflow.winflow.controller;
 
+import com.winflow.winflow.dto.LoginRequest;
+import com.winflow.winflow.dto.RegisterRequest;
 import com.winflow.winflow.entity.AppUser;
 import com.winflow.winflow.service.AppUserService;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/users")
 public class AppUserController {
@@ -14,21 +17,24 @@ public class AppUserController {
         this.userService = userService;
     }
 
-    /**
-     * Listens for POST requests to create a new user
-     * Example URL: POST http://localhost:8080/api/users/register?username=kfir&email=kfir@test.com
-     */
     @PostMapping("/register")
-    public AppUser registerUser(@RequestParam String username, @RequestParam String email) {
-        return userService.createNewUser(username, email);
+    public AppUser registerUser(@RequestBody RegisterRequest request) {
+        AppUser user = userService.createNewUser(request.username(), request.email(), request.password());
+        user.setPassword(null); // Never send the password back to the client
+        return user;
     }
 
-    /**
-     * Fetches a user's profile and current coin balance!
-     * Example URL: GET http://localhost:8080/api/users/1
-     */
+    @PostMapping("/login")
+    public AppUser loginUser(@RequestBody LoginRequest request) {
+        AppUser user = userService.login(request.username(), request.password());
+        user.setPassword(null); // Never send the password back to the client
+        return user;
+    }
+
     @GetMapping("/{id}")
     public AppUser getUserProfile(@PathVariable Long id) {
-        return userService.getUserById(id);
+        AppUser user = userService.getUserById(id);
+        user.setPassword(null);
+        return user;
     }
 }

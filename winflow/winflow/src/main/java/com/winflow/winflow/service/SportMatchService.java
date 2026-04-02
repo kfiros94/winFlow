@@ -17,76 +17,101 @@ public class SportMatchService {
 
     private static final Logger log = LoggerFactory.getLogger(SportMatchService.class);
 
+    // All leagues to sync on startup — add or remove entries here freely
+    private static final List<LeagueConfig> LEAGUES = List.of(
+        new LeagueConfig("basketball_nba",            "NBA",                     SportMatch.SportType.NBA),
+        new LeagueConfig("soccer_epl",                "Premier League",          SportMatch.SportType.SOCCER),
+        new LeagueConfig("soccer_spain_la_liga",      "La Liga",                 SportMatch.SportType.SOCCER),
+        new LeagueConfig("soccer_italy_serie_a",      "Serie A",                 SportMatch.SportType.SOCCER),
+        new LeagueConfig("soccer_france_ligue_one",   "Ligue 1",                 SportMatch.SportType.SOCCER),
+        new LeagueConfig("soccer_germany_bundesliga", "Bundesliga",              SportMatch.SportType.SOCCER),
+        new LeagueConfig("soccer_israel_premier_league", "Israeli Premier League", SportMatch.SportType.SOCCER),
+        new LeagueConfig("soccer_uefa_nations_league","UEFA Nations League",     SportMatch.SportType.SOCCER),
+        new LeagueConfig("soccer_fifa_world_cup",     "FIFA World Cup",          SportMatch.SportType.SOCCER)
+    );
+
     private final SportMatchRepository matchRepository;
     private final OddsApiService oddsApiService;
 
-    // We updated the constructor to include our new OddsApiService
     public SportMatchService(SportMatchRepository matchRepository, OddsApiService oddsApiService) {
         this.matchRepository = matchRepository;
         this.oddsApiService = oddsApiService;
     }
 
     public List<SportMatch> getAvailableMatches() {
-        return matchRepository.findByStatus(SportMatch.MatchStatus.PENDING);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fiveDaysAhead = now.plusDays(5);
+        return matchRepository.findByStatusAndStartTimeBetweenOrderByStartTimeAsc(
+                SportMatch.MatchStatus.PENDING, now, fiveDaysAhead
+        );
     }
 
     /**
-     * This method runs automatically when you hit the green "Play" button in IntelliJ!
+     * Runs on startup — loops through every configured league and syncs live matches.
      */
     @PostConstruct
     public void syncMatchesOnStartup() {
-        log.info("--- WINFLOW SYSTEM STARTING: FETCHING LIVE NBA GAMES ---");
+        log.info("=== WINFLOW: SYNCING ALL LEAGUES ===");
 
-        List<MatchOddsDTO> liveMatches = oddsApiService.fetchLiveNBAOdds();
+        for (LeagueConfig league : LEAGUES) {
+            log.info("Syncing: {}", league.leagueName());
+            List<MatchOddsDTO> matches = oddsApiService.fetchOdds(league.sportKey());
 
-        if (liveMatches == null || liveMatches.isEmpty()) {
-            log.warn("No matches found from the API!");
-            return;
-        }
-
-        for (MatchOddsDTO dto : liveMatches) {
-            // 1. Check if we already saved this exact match
-            if (matchRepository.findByExternalApiId(dto.id()).isPresent()) {
+            if (matches.isEmpty()) {
+                log.info("  No matches found for {}", league.leagueName());
                 continue;
             }
 
-            // 2. Safely dig into the JSON structure to find the betting odds
-            Double homeOdds = 1.0;
-            Double awayOdds = 1.0;
+            for (MatchOddsDTO dto : matches) {
+                if (matchRepository.findByExternalApiId(dto.id()).isPresent()) {
+                    continue; // Already saved
+                }
 
-            if (dto.bookmakers() != null && !dto.bookmakers().isEmpty()) {
-                var market = dto.bookmakers().get(0).markets().get(0);
-                for (var outcome : market.outcomes()) {
-                    if (outcome.name().equals(dto.homeTeam())) {
-                        homeOdds = outcome.price();
-                    } else if (outcome.name().equals(dto.awayTeam())) {
-                        awayOdds = outcome.price();
+                Double homeOdds = 1.0;
+                Double awayOdds = 1.0;
+                Double drawOdds = null;
+
+                if (dto.bookmakers() != null && !dto.bookmakers().isEmpty()) {
+                    var market = dto.bookmakers().get(0).markets().get(0);
+                    for (var outcome : market.outcomes()) {
+                        if (outcome.name().equals(dto.homeTeam())) {
+                            homeOdds = outcome.price();
+                        } else if (outcome.name().equals(dto.awayTeam())) {
+                            awayOdds = outcome.price();
+                        } else if (outcome.name().equalsIgnoreCase("Draw")) {
+                            drawOdds = outcome.price();
+                        }
                     }
                 }
+
+                LocalDateTime matchTime = dto.commenceTime()
+                        .withZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime();
+
+                SportMatch newMatch = new SportMatch();
+                newMatch.setExternalApiId(dto.id());
+                newMatch.setSportType(league.sportType());
+                newMatch.setLeagueName(league.leagueName());
+                newMatch.setHomeTeam(dto.homeTeam());
+                newMatch.setAwayTeam(dto.awayTeam());
+                newMatch.setStartTime(matchTime);
+                newMatch.setHomeWinOdds(homeOdds);
+                newMatch.setAwayWinOdds(awayOdds);
+                newMatch.setDrawOdds(drawOdds);
+                newMatch.setStatus(SportMatch.MatchStatus.PENDING);
+
+                try {
+                    matchRepository.save(newMatch);
+                    log.info("  Saved: {} vs {} ({})", dto.homeTeam(), dto.awayTeam(), league.leagueName());
+                } catch (Exception e) {
+                    log.error("  FAILED to save match {} vs {}: {}", dto.homeTeam(), dto.awayTeam(), e.getMessage());
+                }
             }
-
-            // 3. Convert API Time to Local Database Time
-            LocalDateTime matchTime = dto.commenceTime().withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
-
-            // 4. Build our Entity using the Builder pattern!
-            // 4. Build our Entity using standard Java Setters!
-            SportMatch newMatch = new SportMatch();
-            newMatch.setExternalApiId(dto.id());
-            newMatch.setSportType(SportMatch.SportType.NBA);
-            newMatch.setHomeTeam(dto.homeTeam());
-            newMatch.setAwayTeam(dto.awayTeam());
-            newMatch.setStartTime(matchTime);
-            newMatch.setHomeWinOdds(homeOdds);
-            newMatch.setAwayWinOdds(awayOdds);
-            newMatch.setDrawOdds(null); // Basketball rarely has draws
-            newMatch.setStatus(SportMatch.MatchStatus.PENDING);
-
-            // 5. Save to the database!
-            matchRepository.save(newMatch);
-            log.info("Saved Match: {} vs {} (Odds: Home {} | Away {})",
-                    newMatch.getHomeTeam(), newMatch.getAwayTeam(), homeOdds, awayOdds);
         }
 
-        log.info("--- SYNC COMPLETE ---");
+        log.info("=== SYNC COMPLETE ===");
     }
+
+    // Simple config record used only in this class
+    private record LeagueConfig(String sportKey, String leagueName, SportMatch.SportType sportType) {}
 }

@@ -18,6 +18,8 @@ public class SportMatch {
     @Column(nullable = false)
     private SportType sportType;
 
+    private String leagueName;
+
     @Column(nullable = false)
     private String homeTeam;
 
@@ -58,6 +60,9 @@ public class SportMatch {
 
     public SportType getSportType() { return sportType; }
     public void setSportType(SportType sportType) { this.sportType = sportType; }
+
+    public String getLeagueName() { return leagueName; }
+    public void setLeagueName(String leagueName) { this.leagueName = leagueName; }
 
     public String getHomeTeam() { return homeTeam; }
     public void setHomeTeam(String homeTeam) { this.homeTeam = homeTeam; }

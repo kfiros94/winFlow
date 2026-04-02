@@ -11,7 +11,6 @@ public class AppUserService {
 
     private final AppUserRepository userRepository;
 
-    // Standard Constructor Injection
     public AppUserService(AppUserRepository userRepository) {
         this.userRepository = userRepository;
     }
@@ -19,21 +18,32 @@ public class AppUserService {
     /**
      * Creates a new user and gives them 1,000 starting coins
      */
-    public AppUser createNewUser(String username, String email) {
-        // 1. Check if the username is already taken
-        Optional<AppUser> existingUser = userRepository.findByUsername(username);
-        if (existingUser.isPresent()) {
+    public AppUser createNewUser(String username, String email, String password) {
+        if (userRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Username is already taken!");
         }
 
-        // 2. Build the new user using standard Java
         AppUser newUser = new AppUser();
         newUser.setUsername(username);
         newUser.setEmail(email);
-        newUser.setCoinBalance(1000.0); // Welcome bonus!
+        newUser.setPassword(password);
+        newUser.setCoinBalance(1000.0);
 
-        // 3. Save to database and return
         return userRepository.save(newUser);
+    }
+
+    /**
+     * Validates credentials and returns the user if correct
+     */
+    public AppUser login(String username, String password) {
+        AppUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+
+        if (!user.getPassword().equals(password)) {
+            throw new RuntimeException("Invalid username or password");
+        }
+
+        return user;
     }
 
     /**
