@@ -1,5 +1,6 @@
 package com.winflow.winflow.service;
 
+import com.winflow.winflow.dto.BetResponse;
 import com.winflow.winflow.dto.GuessRequest;
 import com.winflow.winflow.entity.AppUser;
 import com.winflow.winflow.entity.Guess;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class GuessService {
@@ -61,6 +63,38 @@ public class GuessService {
 
         return guessRepository.save(newGuess);
 
+    }
+
+    /**
+     * Returns all bets for a user as flat DTOs (avoids lazy-loading issues).
+     */
+    @Transactional(readOnly = true)
+    public List<BetResponse> getUserBets(Long userId) {
+        return guessRepository.findByUserId(userId).stream()
+                .map(this::toBetResponse)
+                .collect(Collectors.toList());
+    }
+
+    private BetResponse toBetResponse(Guess guess) {
+        SportMatch match = guess.getSportMatch();
+        Double odds = switch (guess.getPredictionOutcome()) {
+            case HOME_WIN -> match.getHomeWinOdds();
+            case AWAY_WIN -> match.getAwayWinOdds();
+            case DRAW     -> match.getDrawOdds();
+        };
+        return new BetResponse(
+                guess.getId(),
+                guess.getGuessTime(),
+                guess.getCoinAmount(),
+                guess.getPredictionOutcome().name(),
+                guess.getStatus().name(),
+                guess.getRewardAmount(),
+                match.getHomeTeam(),
+                match.getAwayTeam(),
+                match.getLeagueName(),
+                match.getStartTime(),
+                odds
+        );
     }
 
     /**

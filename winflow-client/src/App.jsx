@@ -5,6 +5,7 @@ import { useState, useEffect, createContext, useContext } from 'react';
 // ─────────────────────────────────────────────
 const TRANSLATIONS = {
   he: {
+    // Auth
     tagline:          'הימורי ספורט חי ותחזיות',
     login:            'כניסה',
     register:         'הרשמה',
@@ -14,11 +15,15 @@ const TRANSLATIONS = {
     pleaseWait:       'אנא המתן...',
     createAccount:    'צור חשבון',
     welcomeBonus:     '!תקבל 1,000 WinCoins להתחלה',
-    welcome:          (name) => `!ברוך הבא, ${name}`,
+    somethingWrong:   'משהו השתבש',
+    // Nav
+    navMatches:       'משחקים',
+    navMyBets:        'ההימורים שלי',
     balance:          'יתרה',
     sync:             'סנכרון 🔄',
     syncing:          '...מסנכרן',
     logout:           'התנתקות',
+    // Matches page
     soccer:           'כדורגל',
     nba:              'NBA',
     allLeagues:       'כל הליגות',
@@ -36,9 +41,30 @@ const TRANSLATIONS = {
     minBetAlert:      '!הימור מינימלי הוא 10 מטבעות',
     syncFailed:       (msg) => `הסנכרון נכשל: ${msg}`,
     betError:         (msg) => `שגיאה: ${msg}`,
-    somethingWrong:   'משהו השתבש',
+    // My Bets page
+    allBets:          'הכל',
+    pendingBets:      'ממתין',
+    wonBets:          'ניצחונות',
+    lostBets:         'הפסדים',
+    totalBets:        'סה"כ הימורים',
+    netPnl:           'רווח/הפסד',
+    predictionLabel:  'תחזית',
+    oddsLabel:        'מכפיל',
+    payoutLabel:      'תשלום',
+    potentialLabel:   'פוטנציאל',
+    noBets:           'אין הימורים עדיין',
+    noBetsHint:       'לך למשחקים והמר על המשחק הראשון שלך!',
+    loadingBets:      '...טוען הימורים',
+    status_PENDING:   'ממתין',
+    status_WIN:       'ניצחון',
+    status_LOSS:      'הפסד',
+    status_REFUNDED:  'הוחזר',
+    pred_HOME_WIN:    'בית',
+    pred_AWAY_WIN:    'חוץ',
+    pred_DRAW:        'תיקו',
   },
   en: {
+    // Auth
     tagline:          'Live Sports Odds & Predictions',
     login:            'Login',
     register:         'Register',
@@ -48,11 +74,15 @@ const TRANSLATIONS = {
     pleaseWait:       'Please wait...',
     createAccount:    'Create Account',
     welcomeBonus:     "You'll receive 1,000 WinCoins to start!",
-    welcome:          (name) => `Welcome, ${name}`,
+    somethingWrong:   'Something went wrong',
+    // Nav
+    navMatches:       'Matches',
+    navMyBets:        'My Bets',
     balance:          'Balance',
     sync:             '🔄 Sync',
     syncing:          'Syncing...',
     logout:           'Logout',
+    // Matches page
     soccer:           'Soccer',
     nba:              'NBA',
     allLeagues:       'All Leagues',
@@ -70,7 +100,27 @@ const TRANSLATIONS = {
     minBetAlert:      'Minimum bet is 10 coins!',
     syncFailed:       (msg) => `Sync failed: ${msg}`,
     betError:         (msg) => `Error: ${msg}`,
-    somethingWrong:   'Something went wrong',
+    // My Bets page
+    allBets:          'All',
+    pendingBets:      'Pending',
+    wonBets:          'Won',
+    lostBets:         'Lost',
+    totalBets:        'Total Bets',
+    netPnl:           'Net P&L',
+    predictionLabel:  'Pick',
+    oddsLabel:        'Odds',
+    payoutLabel:      'Payout',
+    potentialLabel:   'Potential',
+    noBets:           'No bets yet',
+    noBetsHint:       'Head to Matches and place your first bet!',
+    loadingBets:      'Loading bets...',
+    status_PENDING:   'Pending',
+    status_WIN:       'Won',
+    status_LOSS:      'Lost',
+    status_REFUNDED:  'Refunded',
+    pred_HOME_WIN:    'Home',
+    pred_AWAY_WIN:    'Away',
+    pred_DRAW:        'Draw',
   },
 };
 
@@ -289,10 +339,179 @@ function MatchCard({ match, betAmount, onBet }) {
 }
 
 // ─────────────────────────────────────────────
+// MY BETS PAGE
+// ─────────────────────────────────────────────
+const STATUS_STYLE = {
+  PENDING:  'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+  WIN:      'bg-green-500/10  text-green-400  border-green-500/30',
+  LOSS:     'bg-red-500/10    text-red-400    border-red-500/30',
+  REFUNDED: 'bg-gray-500/10  text-gray-400   border-gray-500/30',
+};
+
+function MyBetsPage({ currentUser }) {
+  const { t, lang } = useLang();
+  const [bets, setBets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('ALL'); // ALL | PENDING | WIN | LOSS
+
+  useEffect(() => {
+    fetch(`http://localhost:8080/api/guesses/user/${currentUser.id}`)
+      .then(res => res.json())
+      .then(data => {
+        // Newest first
+        setBets(data.sort((a, b) => new Date(b.guessTime) - new Date(a.guessTime)));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [currentUser.id]);
+
+  const filtered = filter === 'ALL' ? bets : bets.filter(b => b.status === filter);
+
+  // Summary stats
+  const totalBets  = bets.length;
+  const wins       = bets.filter(b => b.status === 'WIN').length;
+  const losses     = bets.filter(b => b.status === 'LOSS').length;
+  const pending    = bets.filter(b => b.status === 'PENDING').length;
+  const netPnl     = bets.reduce((acc, b) => {
+    if (b.status === 'WIN')  return acc + (b.rewardAmount - b.coinAmount);
+    if (b.status === 'LOSS') return acc - b.coinAmount;
+    return acc;
+  }, 0);
+
+  const locale = lang === 'he' ? 'he-IL' : 'en-GB';
+
+  const filters = [
+    { key: 'ALL',     label: t.allBets },
+    { key: 'PENDING', label: t.pendingBets },
+    { key: 'WIN',     label: t.wonBets },
+    { key: 'LOSS',    label: t.lostBets },
+  ];
+
+  return (
+    <main className="max-w-4xl mx-auto px-8 py-8">
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+        {[
+          { label: t.totalBets,   value: totalBets, color: 'text-white' },
+          { label: t.wonBets,     value: wins,      color: 'text-green-400' },
+          { label: t.lostBets,    value: losses,    color: 'text-red-400' },
+          { label: t.pendingBets, value: pending,   color: 'text-yellow-400' },
+          {
+            label: t.netPnl,
+            value: `${netPnl >= 0 ? '+' : ''}${Math.round(netPnl)} 🪙`,
+            color: netPnl >= 0 ? 'text-green-400' : 'text-red-400',
+          },
+        ].map(stat => (
+          <div key={stat.label} className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
+            <p className="text-xs text-gray-500 mb-1">{stat.label}</p>
+            <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {filters.map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key)}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors cursor-pointer ${
+              filter === f.key
+                ? 'bg-blue-600 border-blue-500 text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'
+            }`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Bet List */}
+      {loading ? (
+        <div className="flex justify-center items-center mt-32">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center text-gray-500 mt-24">
+          <p className="text-5xl mb-4">🎲</p>
+          <p className="text-lg font-semibold text-gray-400">{t.noBets}</p>
+          <p className="text-sm mt-2">{t.noBetsHint}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filtered.map(bet => {
+            const meta = LEAGUE_META[bet.leagueName] || { emoji: '⚽' };
+            const predKey = `pred_${bet.predictionOutcome}`;
+            const statusKey = `status_${bet.status}`;
+            const isWin = bet.status === 'WIN';
+            const isPending = bet.status === 'PENDING';
+            const potential = bet.coinAmount * (bet.odds || 1);
+
+            return (
+              <div key={bet.id}
+                className="bg-gray-800 border border-gray-700 rounded-2xl p-5 hover:border-gray-600 transition-colors">
+
+                {/* Top row: league + date + status */}
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs font-semibold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full">
+                    {meta.emoji} {bet.leagueName || 'NBA'}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">
+                      {new Date(bet.guessTime).toLocaleDateString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_STYLE[bet.status] || STATUS_STYLE.PENDING}`}>
+                      {t[statusKey] || bet.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Match name */}
+                <p className="font-bold text-white text-base mb-4">
+                  {bet.homeTeam} <span className="text-gray-500 font-normal text-sm">vs</span> {bet.awayTeam}
+                </p>
+
+                {/* Bet details row */}
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-gray-900 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 mb-1">{t.predictionLabel}</p>
+                    <p className="font-bold text-blue-400">{t[predKey] || bet.predictionOutcome}</p>
+                  </div>
+                  <div className="bg-gray-900 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 mb-1">{t.oddsLabel}</p>
+                    <p className="font-bold text-white">{bet.odds?.toFixed(2) ?? '—'}</p>
+                  </div>
+                  <div className="bg-gray-900 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 mb-1">
+                      {isWin ? t.payoutLabel : t.potentialLabel}
+                    </p>
+                    <p className={`font-bold ${isWin ? 'text-green-400' : isPending ? 'text-yellow-400' : 'text-gray-500'}`}>
+                      {isWin
+                        ? `+${Math.round(bet.rewardAmount)} 🪙`
+                        : isPending
+                          ? `${Math.round(potential)} 🪙`
+                          : `—`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Stake */}
+                <p className="text-xs text-gray-500 mt-3 text-end">
+                  {t.stake} <span className="text-white font-semibold">{bet.coinAmount} 🪙</span>
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </main>
+  );
+}
+
+// ─────────────────────────────────────────────
 // BETTING APP
 // ─────────────────────────────────────────────
 function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const { t, dir, lang } = useLang();
+  const [currentPage, setCurrentPage] = useState('matches'); // 'matches' | 'my-bets'
   const [matches, setMatches] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [betAmount, setBetAmount] = useState(10);
@@ -367,8 +586,25 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
       {/* Top Nav */}
       <nav className="sticky top-0 z-10 bg-[#121212]/95 backdrop-blur border-b border-gray-800 px-8 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-extrabold text-blue-500 tracking-tight">WinFlow</h1>
+        <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
+          <h1 className="text-2xl font-extrabold text-blue-500 tracking-tight shrink-0">WinFlow</h1>
+
+          {/* Page Tabs */}
+          <div className="flex bg-gray-900 rounded-xl p-1 gap-1">
+            <button onClick={() => setCurrentPage('matches')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+                currentPage === 'matches' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}>
+              {t.navMatches}
+            </button>
+            <button onClick={() => setCurrentPage('my-bets')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+                currentPage === 'my-bets' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}>
+              {t.navMyBets}
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="bg-gray-800 border border-yellow-500/30 px-5 py-1.5 rounded-full">
               <span className="text-gray-400 text-sm">{t.balance}: </span>
@@ -388,7 +624,9 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-8 py-8">
+      {currentPage === 'my-bets' && <MyBetsPage currentUser={currentUser} />}
+
+      <main className={`max-w-7xl mx-auto px-8 py-8 ${currentPage === 'my-bets' ? 'hidden' : ''}`}>
 
         {/* Sport Selector */}
         <div className="flex gap-3 mb-6">
