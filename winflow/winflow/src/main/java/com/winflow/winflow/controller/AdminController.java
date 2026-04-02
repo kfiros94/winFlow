@@ -4,6 +4,8 @@ import com.winflow.winflow.service.GuessService;
 import com.winflow.winflow.service.SportMatchService;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins = "http://localhost:5173")
+
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {

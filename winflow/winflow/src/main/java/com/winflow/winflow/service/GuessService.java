@@ -99,9 +99,14 @@ public class GuessService {
                 bet.setStatus(Guess.GuessStatus.WIN);
 
                 // Multiply their bet amount by the exact odds they locked in
-                Double multiplier = (actualWinner == Guess.PredictionType.HOME_WIN)
-                        ? match.getHomeWinOdds()
-                        : match.getAwayWinOdds();
+                Double multiplier;
+                if (actualWinner == Guess.PredictionType.HOME_WIN) {
+                    multiplier = match.getHomeWinOdds();
+                } else if (actualWinner == Guess.PredictionType.AWAY_WIN) {
+                    multiplier = match.getAwayWinOdds();
+                } else {
+                    multiplier = match.getDrawOdds() != null ? match.getDrawOdds() : 1.0;
+                }
                 Double winnings = bet.getCoinAmount() * multiplier;
                 bet.setRewardAmount(winnings);
 
