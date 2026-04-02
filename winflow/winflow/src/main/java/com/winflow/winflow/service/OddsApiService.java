@@ -29,11 +29,16 @@ public class OddsApiService {
     public List<MatchOddsDTO> fetchLiveNBAOdds() {
         log.info("Fetching live NBA matches from The Odds API...");
 
+        // THE MAGIC PRINT STATEMENT: This will expose any hidden spaces or quotes!
+        System.out.println("====== DEBUGGING API KEY ======");
+        System.out.println("DEBUG KEY: [" + apiKey + "]");
+        System.out.println("===============================");
+
         // This sends a GET request to: https://api.the-odds-api.com/v4/sports/basketball_nba/odds/...
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("basketball_nba/odds/")
-                        .queryParam("apiKey", apiKey)
+                        .queryParam("apiKey", apiKey.trim()) // .trim() cleans the key before sending!
                         .queryParam("regions", "us") // We use US bookmakers (like DraftKings) for odds
                         .queryParam("markets", "h2h") // Head-to-Head (Home vs Away)
                         .build())
