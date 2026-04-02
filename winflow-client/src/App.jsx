@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
+import winflowLogo from './assets/winflowLogo.png';
 
 // ─────────────────────────────────────────────
 // TRANSLATIONS
@@ -261,7 +262,7 @@ function AuthScreen({ onAuthSuccess }) {
         <LangToggle />
       </div>
 
-      <h1 className="text-6xl font-extrabold text-blue-500 mb-2 tracking-tight">WinFlow</h1>
+      <img src={winflowLogo} alt="WinFlow" className="h-64 w-auto mb-6" />
       <p className="text-gray-400 mb-10">{t.tagline}</p>
 
       <div className="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl w-full max-w-sm p-8">
@@ -612,7 +613,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
           {/* Left: Logo + divider + clock */}
           <div className="flex items-center gap-3 shrink-0">
-            <h1 className="text-xl font-extrabold text-blue-500 tracking-tight">WinFlow</h1>
+            <img src={winflowLogo} alt="WinFlow" className="h-16 w-auto" />
             <span className="w-px h-4 bg-gray-700" />
             <GmtClock />
           </div>
