@@ -183,6 +183,28 @@ function groupByDay(matches, t, lang) {
 }
 
 // ─────────────────────────────────────────────
+// GMT CLOCK
+// ─────────────────────────────────────────────
+function GmtClock() {
+  const [time, setTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hh = String(time.getHours()).padStart(2, '0');
+  const mm = String(time.getMinutes()).padStart(2, '0');
+  const ss = String(time.getSeconds()).padStart(2, '0');
+
+  return (
+    <span className="font-mono text-sm tabular-nums text-gray-400 tracking-wider">
+      {hh}:{mm}:{ss}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────
 // LANG TOGGLE BUTTON
 // ─────────────────────────────────────────────
 function LangToggle() {
@@ -584,43 +606,67 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   return (
     <div dir={dir} className="min-h-screen bg-[#121212] text-white font-sans">
 
-      {/* Top Nav */}
-      <nav className="sticky top-0 z-10 bg-[#121212]/95 backdrop-blur border-b border-gray-800 px-8 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
-          <h1 className="text-2xl font-extrabold text-blue-500 tracking-tight shrink-0">WinFlow</h1>
+      {/* Navbar */}
+      <nav className="sticky top-0 z-10 bg-[#0d0d0d] border-b border-white/5 shadow-lg shadow-black/40">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
 
-          {/* Page Tabs */}
-          <div className="flex bg-gray-900 rounded-xl p-1 gap-1">
-            <button onClick={() => setCurrentPage('matches')}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
-                currentPage === 'matches' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}>
-              {t.navMatches}
-            </button>
-            <button onClick={() => setCurrentPage('my-bets')}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
-                currentPage === 'my-bets' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}>
-              {t.navMyBets}
-            </button>
+          {/* Left: Logo + divider + clock */}
+          <div className="flex items-center gap-3 shrink-0">
+            <h1 className="text-xl font-extrabold text-blue-500 tracking-tight">WinFlow</h1>
+            <span className="w-px h-4 bg-gray-700" />
+            <GmtClock />
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-gray-800 border border-yellow-500/30 px-5 py-1.5 rounded-full">
-              <span className="text-gray-400 text-sm">{t.balance}: </span>
-              <span className="text-yellow-400 font-bold">{Math.floor(currentUser.coinBalance)} 🪙</span>
+          {/* Center: Page tabs */}
+          <div className="flex bg-gray-900/80 rounded-lg p-0.5 gap-0.5">
+            {[
+              { key: 'matches', label: t.navMatches },
+              { key: 'my-bets', label: t.navMyBets },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setCurrentPage(key)}
+                className={`px-5 py-1.5 rounded-md text-sm font-semibold transition-all cursor-pointer ${
+                  currentPage === key
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-gray-400 hover:text-white'
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Right: Balance + controls */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Balance */}
+            <div className="flex items-center gap-2 bg-gray-900 border border-yellow-500/20 rounded-lg px-4 py-1.5">
+              <span className="text-yellow-400 font-bold tabular-nums">{Math.floor(currentUser.coinBalance).toLocaleString()}</span>
+              <span className="text-yellow-500 text-base">🪙</span>
             </div>
-            <span className="text-gray-500 text-sm hidden sm:block">{currentUser.username}</span>
-            <button onClick={handleSync} disabled={syncing}
-              className="text-gray-400 hover:text-white text-sm border border-gray-700 hover:border-gray-400 px-3 py-1.5 rounded-full transition-colors cursor-pointer disabled:opacity-50">
-              {syncing ? t.syncing : t.sync}
+
+            {/* Username */}
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 border border-gray-800">
+              <span className="text-[10px] text-gray-600">▼</span>
+              <span className="text-sm text-gray-300 font-medium">{currentUser.username}</span>
+            </div>
+
+            {/* Divider */}
+            <span className="w-px h-5 bg-gray-800 mx-1" />
+
+            {/* Sync */}
+            <button onClick={handleSync} disabled={syncing} title={syncing ? t.syncing : t.sync}
+              className="text-gray-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-40">
+              <span className={`text-base ${syncing ? 'animate-spin inline-block' : ''}`}>🔄</span>
             </button>
+
+            {/* Lang */}
             <LangToggle />
+
+            {/* Logout */}
             <button onClick={onLogout}
-              className="text-gray-400 hover:text-white text-sm border border-gray-700 hover:border-gray-400 px-3 py-1.5 rounded-full transition-colors cursor-pointer">
+              className="text-gray-500 hover:text-red-400 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer">
               {t.logout}
             </button>
           </div>
+
         </div>
       </nav>
 
