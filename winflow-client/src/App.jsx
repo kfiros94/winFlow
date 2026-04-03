@@ -560,6 +560,32 @@ function AuthScreen({ onAuthSuccess }) {
 }
 
 // ─────────────────────────────────────────────
+// TEAM LOGO — graceful fallback to initials
+// ─────────────────────────────────────────────
+function TeamLogo({ src, name, className = 'w-10 h-10' }) {
+  const [broken, setBroken] = useState(false);
+  const initials = name
+    ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : '?';
+
+  if (!src || broken) {
+    return (
+      <div className={`${className} rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center text-[10px] font-bold text-gray-400 shrink-0`}>
+        {initials}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={name}
+      className={`${className} object-contain shrink-0`}
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────
 // MATCH CARD
 // ─────────────────────────────────────────────
 function MatchCard({ match, betAmount, onBet }) {
@@ -572,19 +598,36 @@ function MatchCard({ match, betAmount, onBet }) {
 
   return (
     <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-xl hover:border-blue-500/60 transition-all duration-300">
-      <div className="flex justify-between items-center mb-3">
+      {/* League + time */}
+      <div className="flex justify-between items-center mb-4">
         <span className="text-xs font-semibold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full">
           {meta.emoji} {match.leagueName}
         </span>
         <span className="text-xs text-gray-500">{time}</span>
       </div>
 
-      <div className="flex justify-between items-center text-base font-bold mb-5">
-        <span className="w-[42%] truncate text-start">{match.homeTeam}</span>
-        <span className="text-xs text-gray-500 w-[16%] text-center">VS</span>
-        <span className="w-[42%] truncate text-end">{match.awayTeam}</span>
+      {/* Teams row with logos */}
+      <div className="flex items-center justify-between mb-5 gap-2">
+        {/* Home team */}
+        <div className="flex flex-col items-center gap-1.5 w-[42%]">
+          <TeamLogo src={match.homeTeamLogo} name={match.homeTeam} />
+          <span className="text-xs font-bold text-white text-center leading-tight line-clamp-2">
+            {match.homeTeam}
+          </span>
+        </div>
+
+        <span className="text-xs font-bold text-gray-600 shrink-0">VS</span>
+
+        {/* Away team */}
+        <div className="flex flex-col items-center gap-1.5 w-[42%]">
+          <TeamLogo src={match.awayTeamLogo} name={match.awayTeam} />
+          <span className="text-xs font-bold text-white text-center leading-tight line-clamp-2">
+            {match.awayTeam}
+          </span>
+        </div>
       </div>
 
+      {/* Bet buttons */}
       <div className={`grid gap-2 ${isSoccer && match.drawOdds ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <button onClick={() => onBet(match.id, 'HOME_WIN', match.homeTeam)}
           className="bg-gray-700/50 hover:bg-blue-600 text-white py-2.5 rounded-xl font-bold transition-colors border border-gray-600 hover:border-blue-500 flex flex-col items-center cursor-pointer">

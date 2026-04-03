@@ -29,6 +29,9 @@ public class SportMatch {
     @Column(nullable = false)
     private LocalDateTime startTime;
 
+    private String homeTeamLogo;
+    private String awayTeamLogo;
+
     private Double homeWinOdds;
     private Double awayWinOdds;
     private Double drawOdds;
@@ -72,6 +75,12 @@ public class SportMatch {
 
     public LocalDateTime getStartTime() { return startTime; }
     public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+
+    public String getHomeTeamLogo() { return homeTeamLogo; }
+    public void setHomeTeamLogo(String homeTeamLogo) { this.homeTeamLogo = homeTeamLogo; }
+
+    public String getAwayTeamLogo() { return awayTeamLogo; }
+    public void setAwayTeamLogo(String awayTeamLogo) { this.awayTeamLogo = awayTeamLogo; }
 
     public Double getHomeWinOdds() { return homeWinOdds; }
     public void setHomeWinOdds(Double homeWinOdds) { this.homeWinOdds = homeWinOdds; }

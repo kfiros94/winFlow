@@ -32,10 +32,14 @@ public class SportMatchService {
 
     private final SportMatchRepository matchRepository;
     private final OddsApiService oddsApiService;
+    private final TheSportsDbService theSportsDbService;
 
-    public SportMatchService(SportMatchRepository matchRepository, OddsApiService oddsApiService) {
+    public SportMatchService(SportMatchRepository matchRepository,
+                             OddsApiService oddsApiService,
+                             TheSportsDbService theSportsDbService) {
         this.matchRepository = matchRepository;
         this.oddsApiService = oddsApiService;
+        this.theSportsDbService = theSportsDbService;
     }
 
     public List<String> getLeaguesBySport(SportMatch.SportType sportType) {
@@ -103,6 +107,10 @@ public class SportMatchService {
                 newMatch.setAwayWinOdds(awayOdds);
                 newMatch.setDrawOdds(drawOdds);
                 newMatch.setStatus(SportMatch.MatchStatus.PENDING);
+
+                // Enrich with team logos from TheSportsDB (safe — falls back to default on error)
+                newMatch.setHomeTeamLogo(theSportsDbService.fetchTeamLogo(dto.homeTeam()));
+                newMatch.setAwayTeamLogo(theSportsDbService.fetchTeamLogo(dto.awayTeam()));
 
                 try {
                     matchRepository.save(newMatch);
