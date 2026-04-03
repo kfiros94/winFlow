@@ -19,7 +19,9 @@ const TRANSLATIONS = {
     somethingWrong:   'משהו השתבש',
     // Nav
     navMatches:       'משחקים',
+    navStartingSoon:  'מתחיל בקרוב',
     navMyBets:        'ההימורים שלי',
+    noStartingSoon:   'אין משחקים שמתחילים ב-3 השעות הקרובות',
     balance:          'יתרה',
     sync:             'סנכרון 🔄',
     syncing:          '...מסנכרן',
@@ -80,7 +82,9 @@ const TRANSLATIONS = {
     somethingWrong:   'Something went wrong',
     // Nav
     navMatches:       'Matches',
+    navStartingSoon:  'Starting Soon',
     navMyBets:        'My Bets',
+    noStartingSoon:   'No matches starting in the next 3 hours',
     balance:          'Balance',
     sync:             '🔄 Sync',
     syncing:          'Syncing...',
@@ -306,8 +310,11 @@ function getLeagueMeta(leagueName) {
 }
 
 // ── 3. GROUP + SORT a flat list of league names ───────────────────────────────
+// These 5 countries always appear at the top of the dropdown, in this exact order.
+const PRIORITY_REGIONS = ['International', 'England', 'Spain', 'Germany', 'Italy'];
+
 // Returns: [{ country, flagUrl, leagues: [name, ...] }, ...]
-// International first → rest alphabetical → Other last
+// Priority regions first (in defined order) → rest A–Z → Other last
 function groupLeaguesByCountry(leagueNames) {
   const groups = {};
   for (const name of leagueNames) {
@@ -317,12 +324,19 @@ function groupLeaguesByCountry(leagueNames) {
   }
   // Sort leagues within each country alphabetically
   for (const g of Object.values(groups)) g.leagues.sort();
-  // Sort countries: International → A–Z → Other
+
   return Object.values(groups).sort((a, b) => {
-    if (a.country === 'International') return -1;
-    if (b.country === 'International') return 1;
-    if (a.country === 'Other')         return 1;
-    if (b.country === 'Other')         return -1;
+    const ai = PRIORITY_REGIONS.indexOf(a.country);
+    const bi = PRIORITY_REGIONS.indexOf(b.country);
+    // Both in priority list → use priority order
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    // Only a is priority → a comes first
+    if (ai !== -1) return -1;
+    // Only b is priority → b comes first
+    if (bi !== -1) return 1;
+    // Neither is priority: Other always last, rest A–Z
+    if (a.country === 'Other') return 1;
+    if (b.country === 'Other') return -1;
     return a.country.localeCompare(b.country);
   });
 }
@@ -350,6 +364,16 @@ function groupByDay(matches, t, lang) {
     groups[key].matches.push(match);
   }
   return Object.values(groups);
+}
+
+// Returns matches starting between now and 3 hours from now
+function getStartingSoonMatches(matches) {
+  const now = new Date();
+  const in3Hours = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  return matches.filter(m => {
+    const start = new Date(m.startTime);
+    return start > now && start <= in3Hours;
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -822,6 +846,40 @@ function MyBetsPage({ currentUser }) {
 }
 
 // ─────────────────────────────────────────────
+// STARTING SOON PAGE
+// ─────────────────────────────────────────────
+function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, betAmountError }) {
+  const { t, dir } = useLang();
+  const soonMatches = getStartingSoonMatches(matches);
+
+  return (
+    <main dir={dir} className="max-w-7xl mx-auto px-8 py-8">
+      {/* Bet amount input — same as main page */}
+      <div className="flex items-center gap-3 mb-8">
+        <label className="text-gray-400 text-sm">{t.stake}</label>
+        <input type="number" min={10} value={betAmount} onChange={onBetAmountChange}
+          className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-white w-24 text-sm focus:outline-none focus:border-blue-500" />
+        <span className="text-yellow-500 text-sm">🪙</span>
+        {betAmountError && <span className="text-red-400 text-xs">{betAmountError}</span>}
+      </div>
+
+      {soonMatches.length === 0 ? (
+        <div className="flex flex-col items-center justify-center mt-32 text-gray-500">
+          <span className="text-5xl mb-4">⏱️</span>
+          <p className="text-lg font-semibold text-gray-400">{t.noStartingSoon}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {soonMatches.map(match => (
+            <MatchCard key={match.id} match={match} betAmount={betAmount} onBet={onBet} />
+          ))}
+        </div>
+      )}
+    </main>
+  );
+}
+
+// ─────────────────────────────────────────────
 // BETTING APP
 // ─────────────────────────────────────────────
 function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
@@ -922,8 +980,9 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
           {/* Center: Page tabs */}
           <div className="flex bg-gray-900/80 rounded-lg p-0.5 gap-0.5">
             {[
-              { key: 'matches', label: t.navMatches },
-              { key: 'my-bets', label: t.navMyBets },
+              { key: 'matches',       label: t.navMatches },
+              { key: 'starting-soon', label: t.navStartingSoon },
+              { key: 'my-bets',       label: t.navMyBets },
             ].map(({ key, label }) => (
               <button key={key} onClick={() => setCurrentPage(key)}
                 className={`px-5 py-1.5 rounded-md text-sm font-semibold transition-all cursor-pointer ${
@@ -974,7 +1033,12 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
       {currentPage === 'my-bets' && <MyBetsPage currentUser={currentUser} />}
 
-      <main className={`max-w-7xl mx-auto px-8 py-8 ${currentPage === 'my-bets' ? 'hidden' : ''}`}>
+      {currentPage === 'starting-soon' && (
+        <StartingSoonPage matches={matches} betAmount={betAmount} onBet={handleBet}
+          onBetAmountChange={handleBetAmountChange} betAmountError={betAmountError} />
+      )}
+
+      <main className={`max-w-7xl mx-auto px-8 py-8 ${currentPage !== 'matches' ? 'hidden' : ''}`}>
 
         {/* Sport & League Dropdowns */}
         <div className="flex flex-wrap items-end gap-4 mb-8">
