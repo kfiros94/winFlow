@@ -150,6 +150,7 @@ function LangProvider({ children }) {
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
+// Emoji used on match cards (works everywhere)
 const LEAGUE_META = {
   'NBA':                     { emoji: '🏀' },
   'Premier League':          { emoji: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
@@ -162,40 +163,169 @@ const LEAGUE_META = {
   'FIFA World Cup':          { emoji: '🌍' },
 };
 
-// Groups for the league dropdown — flagUrl uses flagcdn.com
-const LEAGUE_GROUPS = [
-  {
-    countryName: 'International', flagUrl: null,
-    leagues: [
-      { name: 'UEFA Nations League', flagUrl: null },
-      { name: 'FIFA World Cup',      flagUrl: null },
-    ],
-  },
-  {
-    countryName: 'England', flagUrl: 'https://flagcdn.com/gb-eng.svg',
-    leagues: [{ name: 'Premier League', flagUrl: 'https://flagcdn.com/gb-eng.svg' }],
-  },
-  {
-    countryName: 'Spain', flagUrl: 'https://flagcdn.com/es.svg',
-    leagues: [{ name: 'La Liga', flagUrl: 'https://flagcdn.com/es.svg' }],
-  },
-  {
-    countryName: 'Italy', flagUrl: 'https://flagcdn.com/it.svg',
-    leagues: [{ name: 'Serie A', flagUrl: 'https://flagcdn.com/it.svg' }],
-  },
-  {
-    countryName: 'France', flagUrl: 'https://flagcdn.com/fr.svg',
-    leagues: [{ name: 'Ligue 1', flagUrl: 'https://flagcdn.com/fr.svg' }],
-  },
-  {
-    countryName: 'Germany', flagUrl: 'https://flagcdn.com/de.svg',
-    leagues: [{ name: 'Bundesliga', flagUrl: 'https://flagcdn.com/de.svg' }],
-  },
-  {
-    countryName: 'Israel', flagUrl: 'https://flagcdn.com/il.svg',
-    leagues: [{ name: 'Israeli Premier League', flagUrl: 'https://flagcdn.com/il.svg' }],
-  },
-];
+// ── 1. EXACT LEAGUE → COUNTRY MAPPING ────────────────────────────────────────
+// Maps every known league name to its country and flagcdn.com image URL.
+// Add any new league here and the dropdown groups itself automatically.
+const LEAGUE_TO_COUNTRY = {
+  // ── International ──
+  'UEFA Champions League':         { country: 'International', flagUrl: null },
+  'UEFA Europa League':            { country: 'International', flagUrl: null },
+  'UEFA Europa Conference League': { country: 'International', flagUrl: null },
+  'UEFA Nations League':           { country: 'International', flagUrl: null },
+  'FIFA World Cup':                { country: 'International', flagUrl: null },
+  'International Friendlies':      { country: 'International', flagUrl: null },
+  // ── England ──
+  'Premier League':                { country: 'England',       flagUrl: 'https://flagcdn.com/gb-eng.svg' },
+  'Championship':                  { country: 'England',       flagUrl: 'https://flagcdn.com/gb-eng.svg' },
+  'League One':                    { country: 'England',       flagUrl: 'https://flagcdn.com/gb-eng.svg' },
+  'League Two':                    { country: 'England',       flagUrl: 'https://flagcdn.com/gb-eng.svg' },
+  // ── Spain ──
+  'La Liga':                       { country: 'Spain',         flagUrl: 'https://flagcdn.com/es.svg' },
+  'La Liga 2':                     { country: 'Spain',         flagUrl: 'https://flagcdn.com/es.svg' },
+  // ── Italy ──
+  'Serie A':                       { country: 'Italy',         flagUrl: 'https://flagcdn.com/it.svg' },
+  'Serie B':                       { country: 'Italy',         flagUrl: 'https://flagcdn.com/it.svg' },
+  // ── France ──
+  'Ligue 1':                       { country: 'France',        flagUrl: 'https://flagcdn.com/fr.svg' },
+  'Ligue 2':                       { country: 'France',        flagUrl: 'https://flagcdn.com/fr.svg' },
+  // ── Germany ──
+  'Bundesliga':                    { country: 'Germany',       flagUrl: 'https://flagcdn.com/de.svg' },
+  '2. Bundesliga':                 { country: 'Germany',       flagUrl: 'https://flagcdn.com/de.svg' },
+  '3. Liga':                       { country: 'Germany',       flagUrl: 'https://flagcdn.com/de.svg' },
+  // ── Netherlands ──
+  'Eredivisie':                    { country: 'Netherlands',   flagUrl: 'https://flagcdn.com/nl.svg' },
+  'Eerste Divisie':                { country: 'Netherlands',   flagUrl: 'https://flagcdn.com/nl.svg' },
+  // ── Portugal ──
+  'Primeira Liga':                 { country: 'Portugal',      flagUrl: 'https://flagcdn.com/pt.svg' },
+  'Liga Portugal 2':               { country: 'Portugal',      flagUrl: 'https://flagcdn.com/pt.svg' },
+  // ── Scotland ──
+  'Scottish Premiership':          { country: 'Scotland',      flagUrl: 'https://flagcdn.com/gb-sct.svg' },
+  'Scottish Championship':         { country: 'Scotland',      flagUrl: 'https://flagcdn.com/gb-sct.svg' },
+  // ── Belgium ──
+  'Belgian First Division A':      { country: 'Belgium',       flagUrl: 'https://flagcdn.com/be.svg' },
+  'Belgian First Division B':      { country: 'Belgium',       flagUrl: 'https://flagcdn.com/be.svg' },
+  // ── Turkey ──
+  'Super Lig':                     { country: 'Turkey',        flagUrl: 'https://flagcdn.com/tr.svg' },
+  // ── Israel ──
+  'Israeli Premier League':        { country: 'Israel',        flagUrl: 'https://flagcdn.com/il.svg' },
+  // ── Brazil ──
+  'Brazil Série A':                { country: 'Brazil',        flagUrl: 'https://flagcdn.com/br.svg' },
+  'Brazil Série B':                { country: 'Brazil',        flagUrl: 'https://flagcdn.com/br.svg' },
+  // ── Argentina ──
+  'Primera División':              { country: 'Argentina',     flagUrl: 'https://flagcdn.com/ar.svg' },
+  // ── Mexico ──
+  'Liga MX':                       { country: 'Mexico',        flagUrl: 'https://flagcdn.com/mx.svg' },
+  // ── USA ──
+  'MLS':                           { country: 'USA',           flagUrl: 'https://flagcdn.com/us.svg' },
+  'NBA':                           { country: 'USA',           flagUrl: 'https://flagcdn.com/us.svg' },
+  // ── Australia ──
+  'A-League Men':                  { country: 'Australia',     flagUrl: 'https://flagcdn.com/au.svg' },
+  'A-League':                      { country: 'Australia',     flagUrl: 'https://flagcdn.com/au.svg' },
+  // ── Sweden ──
+  'Allsvenskan':                   { country: 'Sweden',        flagUrl: 'https://flagcdn.com/se.svg' },
+  'Superettan':                    { country: 'Sweden',        flagUrl: 'https://flagcdn.com/se.svg' },
+  // ── Norway ──
+  'Eliteserien':                   { country: 'Norway',        flagUrl: 'https://flagcdn.com/no.svg' },
+  // ── Denmark ──
+  'Superliga':                     { country: 'Denmark',       flagUrl: 'https://flagcdn.com/dk.svg' },
+  // ── Greece ──
+  'Super League Greece':           { country: 'Greece',        flagUrl: 'https://flagcdn.com/gr.svg' },
+  // ── Russia ──
+  'Russian Premier League':        { country: 'Russia',        flagUrl: 'https://flagcdn.com/ru.svg' },
+  // ── Ukraine ──
+  'Ukrainian Premier League':      { country: 'Ukraine',       flagUrl: 'https://flagcdn.com/ua.svg' },
+  // ── Saudi Arabia ──
+  'Saudi Pro League':              { country: 'Saudi Arabia',  flagUrl: 'https://flagcdn.com/sa.svg' },
+  // ── Japan ──
+  'J1 League':                     { country: 'Japan',         flagUrl: 'https://flagcdn.com/jp.svg' },
+  // ── South Korea ──
+  'K League 1':                    { country: 'South Korea',   flagUrl: 'https://flagcdn.com/kr.svg' },
+  // ── China ──
+  'Chinese Super League':          { country: 'China',         flagUrl: 'https://flagcdn.com/cn.svg' },
+};
+
+// ── 2. FUZZY FALLBACK — for leagues not in the exact map above ────────────────
+function getLeagueMeta(leagueName) {
+  if (LEAGUE_TO_COUNTRY[leagueName]) return LEAGUE_TO_COUNTRY[leagueName];
+  const l = leagueName.toLowerCase();
+  if (l.includes('england') || l.includes('english') || l.includes('fa cup'))
+    return { country: 'England',       flagUrl: 'https://flagcdn.com/gb-eng.svg' };
+  if (l.includes('spain') || l.includes('spanish') || l.includes('laliga'))
+    return { country: 'Spain',         flagUrl: 'https://flagcdn.com/es.svg' };
+  if (l.includes('germany') || l.includes('german') || l.includes('bundesliga') || l.includes('liga - germany'))
+    return { country: 'Germany',       flagUrl: 'https://flagcdn.com/de.svg' };
+  if (l.includes('france') || l.includes('french') || l.includes('ligue'))
+    return { country: 'France',        flagUrl: 'https://flagcdn.com/fr.svg' };
+  if (l.includes('italy') || l.includes('italian') || l.includes('serie'))
+    return { country: 'Italy',         flagUrl: 'https://flagcdn.com/it.svg' };
+  if (l.includes('netherlands') || l.includes('dutch') || l.includes('eredivisie'))
+    return { country: 'Netherlands',   flagUrl: 'https://flagcdn.com/nl.svg' };
+  if (l.includes('portugal') || l.includes('portuguese') || l.includes('primeira'))
+    return { country: 'Portugal',      flagUrl: 'https://flagcdn.com/pt.svg' };
+  if (l.includes('scotland') || l.includes('scottish'))
+    return { country: 'Scotland',      flagUrl: 'https://flagcdn.com/gb-sct.svg' };
+  if (l.includes('belgium') || l.includes('belgian'))
+    return { country: 'Belgium',       flagUrl: 'https://flagcdn.com/be.svg' };
+  if (l.includes('turkey') || l.includes('turkish') || l.includes('süper') || l.includes('super lig'))
+    return { country: 'Turkey',        flagUrl: 'https://flagcdn.com/tr.svg' };
+  if (l.includes('israel') || l.includes('israeli'))
+    return { country: 'Israel',        flagUrl: 'https://flagcdn.com/il.svg' };
+  if (l.includes('brazil') || l.includes('brasileiro') || l.includes('série'))
+    return { country: 'Brazil',        flagUrl: 'https://flagcdn.com/br.svg' };
+  if (l.includes('argentina') || l.includes('argentine'))
+    return { country: 'Argentina',     flagUrl: 'https://flagcdn.com/ar.svg' };
+  if (l.includes('mexico') || l.includes('mexican') || l.includes('liga mx'))
+    return { country: 'Mexico',        flagUrl: 'https://flagcdn.com/mx.svg' };
+  if (l.includes('mls') || l.includes('major league soccer') || l.includes('usa'))
+    return { country: 'USA',           flagUrl: 'https://flagcdn.com/us.svg' };
+  if (l.includes('australia') || l.includes('a-league'))
+    return { country: 'Australia',     flagUrl: 'https://flagcdn.com/au.svg' };
+  if (l.includes('sweden') || l.includes('swedish') || l.includes('allsvenskan'))
+    return { country: 'Sweden',        flagUrl: 'https://flagcdn.com/se.svg' };
+  if (l.includes('norway') || l.includes('norwegian') || l.includes('eliteserien'))
+    return { country: 'Norway',        flagUrl: 'https://flagcdn.com/no.svg' };
+  if (l.includes('denmark') || l.includes('danish') || l.includes('superliga'))
+    return { country: 'Denmark',       flagUrl: 'https://flagcdn.com/dk.svg' };
+  if (l.includes('greece') || l.includes('greek'))
+    return { country: 'Greece',        flagUrl: 'https://flagcdn.com/gr.svg' };
+  if (l.includes('russia') || l.includes('russian'))
+    return { country: 'Russia',        flagUrl: 'https://flagcdn.com/ru.svg' };
+  if (l.includes('ukraine') || l.includes('ukrainian'))
+    return { country: 'Ukraine',       flagUrl: 'https://flagcdn.com/ua.svg' };
+  if (l.includes('saudi') || l.includes('arabic'))
+    return { country: 'Saudi Arabia',  flagUrl: 'https://flagcdn.com/sa.svg' };
+  if (l.includes('japan') || l.includes('j1') || l.includes('j-league'))
+    return { country: 'Japan',         flagUrl: 'https://flagcdn.com/jp.svg' };
+  if (l.includes('korea') || l.includes('k league'))
+    return { country: 'South Korea',   flagUrl: 'https://flagcdn.com/kr.svg' };
+  if (l.includes('china') || l.includes('chinese'))
+    return { country: 'China',         flagUrl: 'https://flagcdn.com/cn.svg' };
+  if (l.includes('uefa') || l.includes('fifa') || l.includes('world cup') || l.includes('nations'))
+    return { country: 'International', flagUrl: null };
+  return { country: 'Other', flagUrl: null };
+}
+
+// ── 3. GROUP + SORT a flat list of league names ───────────────────────────────
+// Returns: [{ country, flagUrl, leagues: [name, ...] }, ...]
+// International first → rest alphabetical → Other last
+function groupLeaguesByCountry(leagueNames) {
+  const groups = {};
+  for (const name of leagueNames) {
+    const { country, flagUrl } = getLeagueMeta(name);
+    if (!groups[country]) groups[country] = { country, flagUrl, leagues: [] };
+    groups[country].leagues.push(name);
+  }
+  // Sort leagues within each country alphabetically
+  for (const g of Object.values(groups)) g.leagues.sort();
+  // Sort countries: International → A–Z → Other
+  return Object.values(groups).sort((a, b) => {
+    if (a.country === 'International') return -1;
+    if (b.country === 'International') return 1;
+    if (a.country === 'Other')         return 1;
+    if (b.country === 'Other')         return -1;
+    return a.country.localeCompare(b.country);
+  });
+}
 
 function dayLabel(dateStr, t, lang) {
   const date = new Date(dateStr);
@@ -270,19 +400,17 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Find the selected league's flagUrl for the trigger button
-  let selectedFlag = null;
-  let selectedLabel = t.allLeagues;
-  if (value !== 'All') {
-    for (const group of LEAGUE_GROUPS) {
-      const found = group.leagues.find(l => l.name === value);
-      if (found) { selectedFlag = found.flagUrl; selectedLabel = found.name; break; }
-    }
-  }
+  // Group the API-returned league names by country using our mapping
+  const grouped = groupLeaguesByCountry(leagues);
+
+  // Resolve the selected league's flag for the trigger button
+  const selectedMeta = value !== 'All' ? getLeagueMeta(value) : null;
+  const selectedFlag = selectedMeta?.flagUrl ?? null;
+  const selectedLabel = value !== 'All' ? value : t.allLeagues;
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger */}
+      {/* Trigger button */}
       <button onClick={() => setOpen(o => !o)}
         className="bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none cursor-pointer min-w-[230px] flex items-center justify-between gap-3">
         <span className="flex items-center gap-2">
@@ -294,61 +422,45 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
         <span className="text-gray-500 text-[10px]">{open ? '▲' : '▼'}</span>
       </button>
 
-      {/* Panel */}
+      {/* Dropdown panel */}
       {open && (
-        <div className="absolute top-full mt-1 start-0 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden min-w-[230px] max-h-80 overflow-y-auto">
-          {/* All Leagues */}
+        <div className="absolute top-full mt-1 start-0 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden min-w-[240px] max-h-96 overflow-y-auto">
+
+          {/* All Leagues row */}
           <button onClick={() => { onChange('All'); setOpen(false); }}
             className={`w-full px-4 py-2.5 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === 'All' ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
-            <span className="text-base">🌍</span> {t.allLeagues}
+            <span className="text-base">🌍</span>
+            {t.allLeagues}
           </button>
 
-          {/* Grouped leagues — only show groups that have leagues returned from the API */}
-          {LEAGUE_GROUPS.map(group => {
-            const available = group.leagues.filter(l => leagues.includes(l.name));
-            if (available.length === 0) return null;
-            return (
-              <div key={group.countryName}>
-                {/* Group header */}
-                <div className="px-4 py-1.5 flex items-center gap-2 bg-gray-800/70 border-t border-gray-800">
-                  {group.flagUrl
-                    ? <img src={group.flagUrl} alt={group.countryName} className="w-5 h-3.5 object-cover rounded-sm shrink-0" />
-                    : <span className="text-sm">🌐</span>}
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{group.countryName}</span>
-                </div>
-                {/* League rows */}
-                {available.map(league => (
-                  <button key={league.name} onClick={() => { onChange(league.name); setOpen(false); }}
-                    className={`w-full px-4 py-2.5 ps-8 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === league.name ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
-                    {league.flagUrl
-                      ? <img src={league.flagUrl} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
-                      : <span className="text-base">🏆</span>}
-                    {league.name}
-                  </button>
-                ))}
+          {/* One section per country, sorted International → A–Z → Other */}
+          {grouped.map(group => (
+            <div key={group.country}>
+              {/* Country header */}
+              <div className="px-4 py-1.5 flex items-center gap-2 bg-gray-800/70 border-t border-gray-800">
+                {group.flagUrl
+                  ? <img src={group.flagUrl} alt={group.country} className="w-5 h-3.5 object-cover rounded-sm shrink-0" />
+                  : <span className="text-sm">🌐</span>}
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  {group.country}
+                </span>
               </div>
-            );
-          })}
-          {/* Any league from API not covered by LEAGUE_GROUPS metadata */}
-          {(() => {
-            const known = LEAGUE_GROUPS.flatMap(g => g.leagues.map(l => l.name));
-            const unknown = leagues.filter(l => !known.includes(l));
-            if (unknown.length === 0) return null;
-            return (
-              <div>
-                <div className="px-4 py-1.5 flex items-center gap-2 bg-gray-800/70 border-t border-gray-800">
-                  <span className="text-sm">⚽</span>
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Other</span>
-                </div>
-                {unknown.map(name => (
+
+              {/* League rows — indented under their country */}
+              {group.leagues.map(name => {
+                const meta = getLeagueMeta(name);
+                return (
                   <button key={name} onClick={() => { onChange(name); setOpen(false); }}
                     className={`w-full px-4 py-2.5 ps-8 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === name ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
-                    <span className="text-base">⚽</span> {name}
+                    {meta.flagUrl
+                      ? <img src={meta.flagUrl} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
+                      : <span className="text-base">🏆</span>}
+                    {name}
                   </button>
-                ))}
-              </div>
-            );
-          })()}
+                );
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>
