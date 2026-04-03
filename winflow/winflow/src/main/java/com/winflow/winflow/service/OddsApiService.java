@@ -1,6 +1,7 @@
 package com.winflow.winflow.service;
 
 import com.winflow.winflow.dto.MatchOddsDTO;
+import com.winflow.winflow.dto.ScoreDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +22,29 @@ public class OddsApiService {
     public OddsApiService(WebClient oddsWebClient, @Value("${odds.api.key}") String apiKey) {
         this.webClient = oddsWebClient;
         this.apiKey = apiKey;
+    }
+
+    /**
+     * Fetches completed scores for a sport key (up to 3 days back).
+     */
+    public List<ScoreDTO> fetchScores(String sportKey) {
+        log.info("Fetching scores for sport: {}", sportKey);
+        try {
+            List<ScoreDTO> result = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path(sportKey + "/scores/")
+                            .queryParam("apiKey", apiKey.trim())
+                            .queryParam("daysFrom", "3")
+                            .build())
+                    .retrieve()
+                    .bodyToFlux(ScoreDTO.class)
+                    .collectList()
+                    .block();
+            return result != null ? result : Collections.emptyList();
+        } catch (Exception e) {
+            log.error("FAILED to fetch scores for '{}': {}", sportKey, e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     /**

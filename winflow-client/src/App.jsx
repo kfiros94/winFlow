@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import winflowLogo from './assets/winflowLogo.png';
 
 // ─────────────────────────────────────────────
@@ -30,6 +30,8 @@ const TRANSLATIONS = {
     allLeagues:       'כל הליגות',
     stake:            ':הימור',
     minBetError:      'הימור מינימלי הוא 10 מטבעות',
+    sportLabel:       'ספורט',
+    leagueLabel:      'ליגה',
     noMatches:        'אין משחקים קרובים ב-5 הימים הבאים.',
     today:            'היום',
     tomorrow:         'מחר',
@@ -89,6 +91,8 @@ const TRANSLATIONS = {
     allLeagues:       'All Leagues',
     stake:            'Stake:',
     minBetError:      'Minimum bet is 10 coins',
+    sportLabel:       'Sport',
+    leagueLabel:      'League',
     noMatches:        'No upcoming matches in the next 5 days.',
     today:            'Today',
     tomorrow:         'Tomorrow',
@@ -158,6 +162,41 @@ const LEAGUE_META = {
   'FIFA World Cup':          { emoji: '🌍' },
 };
 
+// Groups for the league dropdown — flagUrl uses flagcdn.com
+const LEAGUE_GROUPS = [
+  {
+    countryName: 'International', flagUrl: null,
+    leagues: [
+      { name: 'UEFA Nations League', flagUrl: null },
+      { name: 'FIFA World Cup',      flagUrl: null },
+    ],
+  },
+  {
+    countryName: 'England', flagUrl: 'https://flagcdn.com/gb-eng.svg',
+    leagues: [{ name: 'Premier League', flagUrl: 'https://flagcdn.com/gb-eng.svg' }],
+  },
+  {
+    countryName: 'Spain', flagUrl: 'https://flagcdn.com/es.svg',
+    leagues: [{ name: 'La Liga', flagUrl: 'https://flagcdn.com/es.svg' }],
+  },
+  {
+    countryName: 'Italy', flagUrl: 'https://flagcdn.com/it.svg',
+    leagues: [{ name: 'Serie A', flagUrl: 'https://flagcdn.com/it.svg' }],
+  },
+  {
+    countryName: 'France', flagUrl: 'https://flagcdn.com/fr.svg',
+    leagues: [{ name: 'Ligue 1', flagUrl: 'https://flagcdn.com/fr.svg' }],
+  },
+  {
+    countryName: 'Germany', flagUrl: 'https://flagcdn.com/de.svg',
+    leagues: [{ name: 'Bundesliga', flagUrl: 'https://flagcdn.com/de.svg' }],
+  },
+  {
+    countryName: 'Israel', flagUrl: 'https://flagcdn.com/il.svg',
+    leagues: [{ name: 'Israeli Premier League', flagUrl: 'https://flagcdn.com/il.svg' }],
+  },
+];
+
 function dayLabel(dateStr, t, lang) {
   const date = new Date(dateStr);
   const today = new Date();
@@ -215,6 +254,104 @@ function LangToggle() {
       className="text-xs font-bold border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white px-3 py-1.5 rounded-full transition-colors cursor-pointer">
       {lang === 'he' ? 'EN' : 'עב'}
     </button>
+  );
+}
+
+// ─────────────────────────────────────────────
+// LEAGUE DROPDOWN (custom — supports flag images)
+// ─────────────────────────────────────────────
+function LeagueDropdown({ value, onChange, t, leagues }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Find the selected league's flagUrl for the trigger button
+  let selectedFlag = null;
+  let selectedLabel = t.allLeagues;
+  if (value !== 'All') {
+    for (const group of LEAGUE_GROUPS) {
+      const found = group.leagues.find(l => l.name === value);
+      if (found) { selectedFlag = found.flagUrl; selectedLabel = found.name; break; }
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger */}
+      <button onClick={() => setOpen(o => !o)}
+        className="bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none cursor-pointer min-w-[230px] flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2">
+          {selectedFlag
+            ? <img src={selectedFlag} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
+            : <span className="text-base">🌍</span>}
+          <span className="truncate">{selectedLabel}</span>
+        </span>
+        <span className="text-gray-500 text-[10px]">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {/* Panel */}
+      {open && (
+        <div className="absolute top-full mt-1 start-0 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden min-w-[230px] max-h-80 overflow-y-auto">
+          {/* All Leagues */}
+          <button onClick={() => { onChange('All'); setOpen(false); }}
+            className={`w-full px-4 py-2.5 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === 'All' ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
+            <span className="text-base">🌍</span> {t.allLeagues}
+          </button>
+
+          {/* Grouped leagues — only show groups that have leagues returned from the API */}
+          {LEAGUE_GROUPS.map(group => {
+            const available = group.leagues.filter(l => leagues.includes(l.name));
+            if (available.length === 0) return null;
+            return (
+              <div key={group.countryName}>
+                {/* Group header */}
+                <div className="px-4 py-1.5 flex items-center gap-2 bg-gray-800/70 border-t border-gray-800">
+                  {group.flagUrl
+                    ? <img src={group.flagUrl} alt={group.countryName} className="w-5 h-3.5 object-cover rounded-sm shrink-0" />
+                    : <span className="text-sm">🌐</span>}
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{group.countryName}</span>
+                </div>
+                {/* League rows */}
+                {available.map(league => (
+                  <button key={league.name} onClick={() => { onChange(league.name); setOpen(false); }}
+                    className={`w-full px-4 py-2.5 ps-8 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === league.name ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
+                    {league.flagUrl
+                      ? <img src={league.flagUrl} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
+                      : <span className="text-base">🏆</span>}
+                    {league.name}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+          {/* Any league from API not covered by LEAGUE_GROUPS metadata */}
+          {(() => {
+            const known = LEAGUE_GROUPS.flatMap(g => g.leagues.map(l => l.name));
+            const unknown = leagues.filter(l => !known.includes(l));
+            if (unknown.length === 0) return null;
+            return (
+              <div>
+                <div className="px-4 py-1.5 flex items-center gap-2 bg-gray-800/70 border-t border-gray-800">
+                  <span className="text-sm">⚽</span>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Other</span>
+                </div>
+                {unknown.map(name => (
+                  <button key={name} onClick={() => { onChange(name); setOpen(false); }}
+                    className={`w-full px-4 py-2.5 ps-8 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === name ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
+                    <span className="text-base">⚽</span> {name}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -542,6 +679,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const [syncing, setSyncing] = useState(false);
   const [selectedSport, setSelectedSport] = useState('SOCCER');
   const [selectedLeague, setSelectedLeague] = useState('All');
+  const [apiLeagues, setApiLeagues] = useState([]);
 
   const loadMatches = () => {
     setLoadingMatches(true);
@@ -552,6 +690,14 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   };
 
   useEffect(() => { loadMatches(); }, []);
+
+  useEffect(() => {
+    if (selectedSport !== 'SOCCER') { setApiLeagues([]); return; }
+    fetch(`http://localhost:8080/api/matches/leagues?sport=SOCCER`)
+      .then(res => res.json())
+      .then(data => setApiLeagues(data))
+      .catch(() => setApiLeagues([]));
+  }, [selectedSport]);
 
   const handleSportChange = (sport) => {
     setSelectedSport(sport);
@@ -675,41 +821,26 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
       <main className={`max-w-7xl mx-auto px-8 py-8 ${currentPage === 'my-bets' ? 'hidden' : ''}`}>
 
-        {/* Sport Selector */}
-        <div className="flex gap-3 mb-6">
-          {[
-            { key: 'SOCCER', label: t.soccer, emoji: '⚽' },
-            { key: 'NBA',    label: t.nba,    emoji: '🏀' },
-          ].map(({ key, label, emoji }) => (
-            <button key={key} onClick={() => handleSportChange(key)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all cursor-pointer border ${
-                selectedSport === key
-                  ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/30'
-                  : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'
-              }`}>
-              <span className="text-xl">{emoji}</span> {label}
-            </button>
-          ))}
-        </div>
-
-        {/* League Sub-tabs (Soccer only) */}
-        {selectedSport === 'SOCCER' && !loadingMatches && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {soccerLeagues.map(league => {
-              const meta = LEAGUE_META[league] || { emoji: '⚽' };
-              return (
-                <button key={league} onClick={() => setSelectedLeague(league)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
-                    selectedLeague === league
-                      ? 'bg-blue-600 border-blue-500 text-white'
-                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'
-                  }`}>
-                  {league === 'All' ? `🌍 ${t.allLeagues}` : `${meta.emoji} ${league}`}
-                </button>
-              );
-            })}
+        {/* Sport & League Dropdowns */}
+        <div className="flex flex-wrap items-end gap-4 mb-8">
+          {/* Sport Dropdown */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500 font-medium">{t.sportLabel}</label>
+            <select value={selectedSport} onChange={e => handleSportChange(e.target.value)}
+              className="bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none focus:border-blue-500 cursor-pointer min-w-[140px]">
+              <option value="SOCCER">⚽ {t.soccer}</option>
+              <option value="NBA">🏀 {t.nba}</option>
+            </select>
           </div>
-        )}
+
+          {/* League Dropdown (Soccer only) */}
+          {selectedSport === 'SOCCER' && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 font-medium">{t.leagueLabel}</label>
+              <LeagueDropdown value={selectedLeague} onChange={setSelectedLeague} t={t} leagues={apiLeagues} />
+            </div>
+          )}
+        </div>
 
         {/* Bet Amount */}
         <div className="flex items-center gap-3 mb-8">

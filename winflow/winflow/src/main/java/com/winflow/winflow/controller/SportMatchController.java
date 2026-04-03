@@ -2,10 +2,7 @@ package com.winflow.winflow.controller;
 
 import com.winflow.winflow.entity.SportMatch;
 import com.winflow.winflow.service.SportMatchService;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -26,5 +23,10 @@ public class SportMatchController {
     @GetMapping
     public List<SportMatch> getAllAvailableMatches() {
         return matchService.getAvailableMatches();
+    }
+
+    @GetMapping("/leagues")
+    public List<String> getLeagues(@RequestParam String sport) {
+        return matchService.getLeaguesBySport(SportMatch.SportType.valueOf(sport.toUpperCase()));
     }
 }

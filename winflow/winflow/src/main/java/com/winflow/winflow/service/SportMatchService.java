@@ -38,6 +38,10 @@ public class SportMatchService {
         this.oddsApiService = oddsApiService;
     }
 
+    public List<String> getLeaguesBySport(SportMatch.SportType sportType) {
+        return matchRepository.findDistinctLeagueNamesBySportType(sportType);
+    }
+
     public List<SportMatch> getAvailableMatches() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime fiveDaysAhead = now.plusDays(5);
@@ -112,6 +116,10 @@ public class SportMatchService {
         log.info("=== SYNC COMPLETE ===");
     }
 
-    // Simple config record used only in this class
-    private record LeagueConfig(String sportKey, String leagueName, SportMatch.SportType sportType) {}
+    public List<String> getAllSportKeys() {
+        return LEAGUES.stream().map(LeagueConfig::sportKey).toList();
+    }
+
+    // Config record — package-accessible so MatchResolutionService can read sport keys
+    record LeagueConfig(String sportKey, String leagueName, SportMatch.SportType sportType) {}
 }

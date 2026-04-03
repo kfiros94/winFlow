@@ -2,6 +2,8 @@ package com.winflow.winflow.repository;
 
 import com.winflow.winflow.entity.SportMatch;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -21,4 +23,11 @@ public interface SportMatchRepository extends JpaRepository<SportMatch, Long> {
             LocalDateTime from,
             LocalDateTime to
     );
+
+    // Finds PENDING matches whose start time is already in the past (needs resolution)
+    List<SportMatch> findByStatusAndStartTimeBefore(SportMatch.MatchStatus status, LocalDateTime time);
+
+    // Returns all distinct league names ever synced for a given sport
+    @Query("SELECT DISTINCT m.leagueName FROM SportMatch m WHERE m.sportType = :sportType AND m.leagueName IS NOT NULL ORDER BY m.leagueName")
+    List<String> findDistinctLeagueNamesBySportType(@Param("sportType") SportMatch.SportType sportType);
 }
