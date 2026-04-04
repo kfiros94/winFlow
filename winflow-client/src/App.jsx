@@ -46,6 +46,13 @@ const TRANSLATIONS = {
     minBetAlert:      '!הימור מינימלי הוא 10 מטבעות',
     syncFailed:       (msg) => `הסנכרון נכשל: ${msg}`,
     betError:         (msg) => `שגיאה: ${msg}`,
+    // Bet modal
+    betSummary:       'סיכום הימור',
+    yourPick:         'הבחירה שלך',
+    confirmBetBtn:    'אשר הימור ✓',
+    cancel:           'ביטול',
+    processing:       '...מעבד',
+    potentialWin:     'רווח פוטנציאלי',
     // My Bets page
     allBets:          'הכל',
     pendingBets:      'ממתין',
@@ -109,6 +116,13 @@ const TRANSLATIONS = {
     minBetAlert:      'Minimum bet is 10 coins!',
     syncFailed:       (msg) => `Sync failed: ${msg}`,
     betError:         (msg) => `Error: ${msg}`,
+    // Bet modal
+    betSummary:       'Bet Summary',
+    yourPick:         'Your Pick',
+    confirmBetBtn:    'Confirm Bet ✓',
+    cancel:           'Cancel',
+    processing:       'Processing...',
+    potentialWin:     'Potential Win',
     // My Bets page
     allBets:          'All',
     pendingBets:      'Pending',
@@ -880,6 +894,108 @@ function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, betAmo
 }
 
 // ─────────────────────────────────────────────
+// TOAST — auto-dismissing success notification
+// ─────────────────────────────────────────────
+function Toast({ message, onDismiss }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 3500);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
+  return (
+    <div className="fixed bottom-6 end-6 z-[60] flex items-center gap-3 bg-gray-900 border border-green-500/40 text-green-300 px-5 py-3.5 rounded-2xl shadow-2xl">
+      <span className="flex items-center justify-center w-6 h-6 bg-green-500/20 rounded-full text-green-400 text-sm shrink-0">✓</span>
+      <span className="text-sm font-semibold">{message}</span>
+      <button onClick={onDismiss} className="text-gray-600 hover:text-gray-400 ms-2 text-xs cursor-pointer">✕</button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// BET CONFIRM MODAL
+// ─────────────────────────────────────────────
+function BetConfirmModal({ pendingBet, match, betAmount, onConfirm, onCancel, loading, t, dir }) {
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCancel]);
+
+  const { prediction, teamName } = pendingBet;
+  const odds = prediction === 'HOME_WIN' ? match.homeWinOdds
+             : prediction === 'AWAY_WIN' ? match.awayWinOdds
+             : match.drawOdds;
+  const potentialWin = Math.round(betAmount * (odds || 1));
+  const predLabel = { HOME_WIN: t.home, AWAY_WIN: t.away, DRAW: t.draw }[prediction] || prediction;
+
+  const SummaryRow = ({ label, value, highlight }) => (
+    <div className="flex items-center justify-between py-2.5 border-b border-gray-800 last:border-0">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className={`text-sm font-bold ${highlight ? 'text-green-400' : 'text-white'}`}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop — click to cancel */}
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onCancel} />
+
+      {/* Panel */}
+      <div dir={dir} className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+          <h2 className="text-base font-bold text-white">{t.betSummary}</h2>
+          <button onClick={onCancel}
+            className="text-gray-600 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-800 transition-colors cursor-pointer text-lg leading-none">
+            ✕
+          </button>
+        </div>
+
+        {/* Match display */}
+        <div className="px-6 py-4 bg-gray-800/50 border-b border-gray-800">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col items-center gap-1 w-[42%]">
+              <TeamLogo src={match.homeTeamLogo} name={match.homeTeam} className="w-10 h-10" />
+              <span className="text-xs font-semibold text-white text-center line-clamp-2 leading-tight">{match.homeTeam}</span>
+            </div>
+            <span className="text-xs font-bold text-gray-600 shrink-0">VS</span>
+            <div className="flex flex-col items-center gap-1 w-[42%]">
+              <TeamLogo src={match.awayTeamLogo} name={match.awayTeam} className="w-10 h-10" />
+              <span className="text-xs font-semibold text-white text-center line-clamp-2 leading-tight">{match.awayTeam}</span>
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-600 text-center mt-2">{match.leagueName}</p>
+        </div>
+
+        {/* Bet summary rows */}
+        <div className="px-6 py-2">
+          <SummaryRow label={t.yourPick}    value={`${predLabel} — ${teamName}`} />
+          <SummaryRow label={t.oddsLabel}   value={odds?.toFixed(2) ?? '—'} />
+          <SummaryRow label={t.stake}       value={`${betAmount} 🪙`} />
+          <SummaryRow label={t.potentialWin} value={`${potentialWin} 🪙`} highlight />
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-800">
+          <button onClick={onCancel} disabled={loading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-40 cursor-pointer">
+            {t.cancel}
+          </button>
+          <button onClick={onConfirm} disabled={loading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2">
+            {loading
+              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t.processing}</>
+              : t.confirmBetBtn}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // BETTING APP
 // ─────────────────────────────────────────────
 function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
@@ -893,6 +1009,10 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const [selectedSport, setSelectedSport] = useState('SOCCER');
   const [selectedLeague, setSelectedLeague] = useState('All');
   const [apiLeagues, setApiLeagues] = useState([]);
+  // Modal + toast state
+  const [pendingBet, setPendingBet] = useState(null); // { matchId, prediction, teamName }
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [toast, setToast] = useState(null); // string message
 
   const loadMatches = () => {
     setLoadingMatches(true);
@@ -945,9 +1065,18 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
     setBetAmountError(val < 10 ? t.minBetError : '');
   };
 
-  const handleBet = async (matchId, prediction, teamName) => {
-    if (betAmount < 10) { alert(t.minBetAlert); return; }
-    if (currentUser.coinBalance < betAmount) { alert(t.notEnoughCoins); return; }
+  // Opens the confirmation modal — no API call yet
+  const handleBet = (matchId, prediction, teamName) => {
+    if (betAmount < 10) { setToast(t.minBetAlert); return; }
+    if (currentUser.coinBalance < betAmount) { setToast(t.notEnoughCoins); return; }
+    setPendingBet({ matchId, prediction, teamName });
+  };
+
+  // Called when the user clicks "Confirm" inside the modal
+  const confirmBet = async () => {
+    if (!pendingBet) return;
+    const { matchId, prediction, teamName } = pendingBet;
+    setConfirmLoading(true);
     try {
       const res = await fetch('http://localhost:8080/api/guesses/place', {
         method: 'POST',
@@ -955,16 +1084,40 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
         body: JSON.stringify({ matchId, prediction, coinAmount: betAmount, userId: currentUser.id }),
       });
       if (!res.ok) throw new Error(await res.text() || t.somethingWrong);
-      alert(t.betPlaced(betAmount, teamName));
+      setPendingBet(null);
+      setToast(t.betPlaced(betAmount, teamName));
       const updatedUser = await (await fetch(`http://localhost:8080/api/users/${currentUser.id}`)).json();
       onBalanceUpdate(updatedUser.coinBalance);
     } catch (err) {
-      alert(t.betError(err.message));
+      setPendingBet(null);
+      setToast(t.betError(err.message));
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
+  // Resolve the full match object for the modal
+  const pendingMatch = pendingBet ? matches.find(m => m.id === pendingBet.matchId) : null;
+
   return (
     <div dir={dir} className="min-h-screen bg-[#121212] text-white font-sans">
+
+      {/* Bet confirmation modal */}
+      {pendingBet && pendingMatch && (
+        <BetConfirmModal
+          pendingBet={pendingBet}
+          match={pendingMatch}
+          betAmount={betAmount}
+          onConfirm={confirmBet}
+          onCancel={() => setPendingBet(null)}
+          loading={confirmLoading}
+          t={t}
+          dir={dir}
+        />
+      )}
+
+      {/* Success / error toast */}
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
       {/* Navbar */}
       <nav className="sticky top-0 z-10 bg-[#0d0d0d] border-b border-white/5 shadow-lg shadow-black/40">
