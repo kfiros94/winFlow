@@ -32,6 +32,9 @@ const TRANSLATIONS = {
     soccer:           'כדורגל',
     nba:              'NBA',
     allLeagues:       'כל הליגות',
+    searchLeagues:    'חפש ליגה...',
+    noLeaguesFound:   'לא נמצאו ליגות',
+    close:            'סגור',
     stake:            ':הימור',
     minBetError:      'הימור מינימלי הוא 10 מטבעות',
     sportLabel:       'ספורט',
@@ -107,6 +110,9 @@ const TRANSLATIONS = {
     soccer:           'Soccer',
     nba:              'NBA',
     allLeagues:       'All Leagues',
+    searchLeagues:    'Search leagues...',
+    noLeaguesFound:   'No leagues found',
+    close:            'Close',
     stake:            'Stake:',
     minBetError:      'Minimum bet is 10 coins',
     sportLabel:       'Sport',
@@ -272,6 +278,15 @@ const LEAGUE_TO_COUNTRY = {
   'K League 1':                    { country: 'South Korea',   flagUrl: 'https://flagcdn.com/kr.svg' },
   // ── China ──
   'Chinese Super League':          { country: 'China',         flagUrl: 'https://flagcdn.com/cn.svg' },
+  // ── More API-supported competitions ──
+  'Copa Libertadores':             { country: 'International', flagUrl: null },
+  'Copa Sudamericana':             { country: 'International', flagUrl: null },
+  'Austrian Bundesliga':           { country: 'Austria',       flagUrl: 'https://flagcdn.com/at.svg' },
+  'Swiss Super League':            { country: 'Switzerland',   flagUrl: 'https://flagcdn.com/ch.svg' },
+  'Polish Ekstraklasa':            { country: 'Poland',        flagUrl: 'https://flagcdn.com/pl.svg' },
+  'Finnish Veikkausliiga':         { country: 'Finland',       flagUrl: 'https://flagcdn.com/fi.svg' },
+  'League of Ireland':             { country: 'Ireland',       flagUrl: 'https://flagcdn.com/ie.svg' },
+  'Chilean Primera División':      { country: 'Chile',         flagUrl: 'https://flagcdn.com/cl.svg' },
 };
 
 // ── 2. FUZZY FALLBACK — for leagues not in the exact map above ────────────────
@@ -330,7 +345,19 @@ function getLeagueMeta(leagueName) {
     return { country: 'South Korea',   flagUrl: 'https://flagcdn.com/kr.svg' };
   if (l.includes('china') || l.includes('chinese'))
     return { country: 'China',         flagUrl: 'https://flagcdn.com/cn.svg' };
-  if (l.includes('uefa') || l.includes('fifa') || l.includes('world cup') || l.includes('nations'))
+  if (l.includes('austria') || l.includes('austrian'))
+    return { country: 'Austria',       flagUrl: 'https://flagcdn.com/at.svg' };
+  if (l.includes('switzerland') || l.includes('swiss'))
+    return { country: 'Switzerland',   flagUrl: 'https://flagcdn.com/ch.svg' };
+  if (l.includes('poland') || l.includes('polish') || l.includes('ekstraklasa'))
+    return { country: 'Poland',        flagUrl: 'https://flagcdn.com/pl.svg' };
+  if (l.includes('finland') || l.includes('finnish') || l.includes('veikkausliiga'))
+    return { country: 'Finland',       flagUrl: 'https://flagcdn.com/fi.svg' };
+  if (l.includes('ireland') || l.includes('irish'))
+    return { country: 'Ireland',       flagUrl: 'https://flagcdn.com/ie.svg' };
+  if (l.includes('chile') || l.includes('chilean'))
+    return { country: 'Chile',         flagUrl: 'https://flagcdn.com/cl.svg' };
+  if (l.includes('libertadores') || l.includes('sudamericana') || l.includes('uefa') || l.includes('fifa') || l.includes('world cup') || l.includes('nations'))
     return { country: 'International', flagUrl: null };
   return { country: 'Other', flagUrl: null };
 }
@@ -497,16 +524,32 @@ function LangToggle() {
 // ─────────────────────────────────────────────
 function LeagueDropdown({ value, onChange, t, leagues }) {
   const [open, setOpen] = useState(false);
+  const [leagueSearch, setLeagueSearch] = useState('');
   const ref = useRef(null);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, []);
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const isMobile = window.matchMedia('(max-width: 639px)').matches;
+    if (!isMobile) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [open]);
+
   // Group the API-returned league names by country using our mapping
-  const grouped = groupLeaguesByCountry(leagues);
+  const search = leagueSearch.trim().toLowerCase();
+  const filteredLeagues = search
+    ? leagues.filter(name => name.toLowerCase().includes(search) || getLeagueMeta(name).country.toLowerCase().includes(search))
+    : leagues;
+  const grouped = groupLeaguesByCountry(filteredLeagues);
 
   // Resolve the selected league's flag for the trigger button
   const selectedMeta = value !== 'All' ? getLeagueMeta(value) : null;
@@ -516,9 +559,9 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
   return (
     <div ref={ref} className="relative">
       {/* Trigger button */}
-      <button onClick={() => setOpen(o => !o)}
-        className="bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none cursor-pointer min-w-[230px] flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2">
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="w-full min-w-0 bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none cursor-pointer sm:min-w-[230px] flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2">
           {selectedFlag
             ? <img src={selectedFlag} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
             : <span className="text-base">🌍</span>}
@@ -529,10 +572,30 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute top-full mt-1 start-0 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden min-w-[240px] max-h-96 overflow-y-auto">
+        <>
+        <button type="button" aria-label={t.close} onClick={() => setOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm sm:hidden" />
+        <div className="fixed inset-x-3 bottom-3 z-50 flex max-h-[75dvh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-gray-900 shadow-2xl sm:absolute sm:bottom-auto sm:start-0 sm:top-full sm:mt-1 sm:max-h-[28rem] sm:min-w-[280px] sm:rounded-xl">
+
+          <div className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900/95 p-3 backdrop-blur">
+            <div className="mb-2 flex items-center justify-between sm:hidden">
+              <span className="text-sm font-bold text-white">{t.leagueLabel}</span>
+              <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-gray-300">
+                {t.close}
+              </button>
+            </div>
+            <input
+              value={leagueSearch}
+              onChange={e => setLeagueSearch(e.target.value)}
+              placeholder={t.searchLeagues}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300/70"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
 
           {/* All Leagues row */}
-          <button onClick={() => { onChange('All'); setOpen(false); }}
+          <button type="button" onClick={() => { onChange('All'); setOpen(false); }}
             className={`w-full px-4 py-2.5 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === 'All' ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
             <span className="text-base">🌍</span>
             {t.allLeagues}
@@ -555,7 +618,7 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
               {group.leagues.map(name => {
                 const meta = getLeagueMeta(name);
                 return (
-                  <button key={name} onClick={() => { onChange(name); setOpen(false); }}
+                  <button key={name} type="button" onClick={() => { onChange(name); setOpen(false); }}
                     className={`w-full px-4 py-2.5 ps-8 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === name ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
                     {meta.flagUrl
                       ? <img src={meta.flagUrl} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
@@ -566,7 +629,13 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
               })}
             </div>
           ))}
+
+          {grouped.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-gray-500">{t.noLeaguesFound}</div>
+          )}
+          </div>
         </div>
+        </>
       )}
     </div>
   );
@@ -693,10 +762,32 @@ function TeamLogo({ src, name, className = 'w-10 h-10' }) {
   );
 }
 
+function OddButton({ label, odds, onClick, accent = 'blue' }) {
+  const accentClasses = accent === 'yellow'
+    ? 'hover:border-yellow-300/70 hover:bg-yellow-400/15 hover:text-yellow-100'
+    : 'hover:border-emerald-300/70 hover:bg-emerald-400/15 hover:text-emerald-100';
+  return (
+    <button type="button" onClick={onClick}
+      className={`group rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-3 text-white shadow-inner shadow-white/5 transition-all duration-200 hover:-translate-y-0.5 ${accentClasses} cursor-pointer`}>
+      <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 group-hover:text-current">{label}</span>
+      <span className="mt-1 block text-xl font-black tabular-nums">{Number(odds).toFixed(2)}</span>
+    </button>
+  );
+}
+
+function SummaryRow({ label, value, highlight }) {
+  return (
+    <div className="flex items-center justify-between py-2.5 border-b border-gray-800 last:border-0">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className={`text-sm font-bold ${highlight ? 'text-green-400' : 'text-white'}`}>{value}</span>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────
 // MATCH CARD
 // ─────────────────────────────────────────────
-function MatchCard({ match, betAmount, onBet }) {
+function MatchCard({ match, onBet }) {
   const { t, lang } = useLang();
   const isSoccer = match.sportType === 'SOCCER';
   const leagueMeta = getLeagueMeta(match.leagueName || (match.sportType === 'NBA' ? 'NBA' : 'Other'));
@@ -704,19 +795,6 @@ function MatchCard({ match, betAmount, onBet }) {
   const time = formatIsraelTime(match.startTime, lang);
   const mins = minutesUntil(match.startTime);
   const startingSoon = mins > 0 && mins <= 180;
-
-  const OddButton = ({ label, odds, onClick, accent = 'blue' }) => {
-    const accentClasses = accent === 'yellow'
-      ? 'hover:border-yellow-300/70 hover:bg-yellow-400/15 hover:text-yellow-100'
-      : 'hover:border-emerald-300/70 hover:bg-emerald-400/15 hover:text-emerald-100';
-    return (
-      <button onClick={onClick}
-        className={`group rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-3 text-white shadow-inner shadow-white/5 transition-all duration-200 hover:-translate-y-0.5 ${accentClasses} cursor-pointer`}>
-        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 group-hover:text-current">{label}</span>
-        <span className="mt-1 block text-xl font-black tabular-nums">{Number(odds).toFixed(2)}</span>
-      </button>
-    );
-  };
 
   return (
     <div className="relative overflow-hidden rounded-[1.7rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-black/30 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300/40 hover:shadow-emerald-950/30">
@@ -964,7 +1042,7 @@ function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, betAmo
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {soonMatches.map(match => (
-            <MatchCard key={match.id} match={match} betAmount={betAmount} onBet={onBet} />
+            <MatchCard key={match.id} match={match} onBet={onBet} />
           ))}
         </div>
       )}
@@ -1007,13 +1085,6 @@ function BetConfirmModal({ pendingBet, match, betAmount, onConfirm, onCancel, lo
              : match.drawOdds;
   const potentialWin = Math.round(betAmount * (odds || 1));
   const predLabel = { HOME_WIN: t.home, AWAY_WIN: t.away, DRAW: t.draw }[prediction] || prediction;
-
-  const SummaryRow = ({ label, value, highlight }) => (
-    <div className="flex items-center justify-between py-2.5 border-b border-gray-800 last:border-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className={`text-sm font-bold ${highlight ? 'text-green-400' : 'text-white'}`}>{value}</span>
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1128,10 +1199,6 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
       setSyncing(false);
     }
   };
-
-  const soccerLeagues = ['All', ...new Set(
-    matches.filter(m => m.sportType === 'SOCCER').map(m => m.leagueName).filter(Boolean)
-  )];
 
   const filteredMatches = matches
     .filter(m => m.sportType === selectedSport)
@@ -1388,7 +1455,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {league.matches.map(match => (
-                          <MatchCard key={match.id} match={match} betAmount={betAmount} onBet={handleBet} />
+                          <MatchCard key={match.id} match={match} onBet={handleBet} />
                         ))}
                       </div>
                     </div>
