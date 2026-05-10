@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import winflowLogo from './assets/winflowLogo.png';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
 // ─────────────────────────────────────────────
 // TRANSLATIONS
 // ─────────────────────────────────────────────
@@ -522,8 +524,8 @@ function AuthScreen({ onAuthSuccess }) {
     setError('');
     setLoading(true);
     const url = mode === 'login'
-      ? 'http://localhost:8080/api/users/login'
-      : 'http://localhost:8080/api/users/register';
+      ? `${API_BASE_URL}/api/users/login`
+      : `${API_BASE_URL}/api/users/register`;
     const body = mode === 'login'
       ? { username, password }
       : { username, email, password };
@@ -708,7 +710,7 @@ function MyBetsPage({ currentUser }) {
   const [filter, setFilter] = useState('ALL'); // ALL | PENDING | WIN | LOSS
 
   useEffect(() => {
-    fetch(`http://localhost:8080/api/guesses/user/${currentUser.id}`)
+    fetch(`${API_BASE_URL}/api/guesses/user/${currentUser.id}`)
       .then(res => res.json())
       .then(data => {
         // Newest first
@@ -1016,7 +1018,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
   const loadMatches = () => {
     setLoadingMatches(true);
-    fetch('http://localhost:8080/api/matches')
+    fetch(`${API_BASE_URL}/api/matches`)
       .then(res => res.json())
       .then(data => { setMatches(data); setLoadingMatches(false); })
       .catch(() => setLoadingMatches(false));
@@ -1026,7 +1028,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
   useEffect(() => {
     if (selectedSport !== 'SOCCER') { setApiLeagues([]); return; }
-    fetch(`http://localhost:8080/api/matches/leagues?sport=SOCCER`)
+    fetch(`${API_BASE_URL}/api/matches/leagues?sport=SOCCER`)
       .then(res => res.json())
       .then(data => setApiLeagues(data))
       .catch(() => setApiLeagues([]));
@@ -1040,7 +1042,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await fetch('http://localhost:8080/api/admin/sync', { method: 'POST' });
+      await fetch(`${API_BASE_URL}/api/admin/sync`, { method: 'POST' });
       loadMatches();
     } catch (err) {
       alert(t.syncFailed(err.message));
@@ -1078,7 +1080,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
     const { matchId, prediction, teamName } = pendingBet;
     setConfirmLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/api/guesses/place', {
+      const res = await fetch(`${API_BASE_URL}/api/guesses/place`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchId, prediction, coinAmount: betAmount, userId: currentUser.id }),
@@ -1086,7 +1088,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
       if (!res.ok) throw new Error(await res.text() || t.somethingWrong);
       setPendingBet(null);
       setToast(t.betPlaced(betAmount, teamName));
-      const updatedUser = await (await fetch(`http://localhost:8080/api/users/${currentUser.id}`)).json();
+      const updatedUser = await (await fetch(`${API_BASE_URL}/api/users/${currentUser.id}`)).json();
       onBalanceUpdate(updatedUser.coinBalance);
     } catch (err) {
       setPendingBet(null);

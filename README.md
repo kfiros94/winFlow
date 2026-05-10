@@ -159,9 +159,42 @@ cd winflow/winflow
 ## Notes
 
 - This is a virtual-coins sports prediction project, not a real-money gambling platform.
-- The frontend currently expects the backend at `http://localhost:8080`.
-- The backend expects PostgreSQL to be running locally.
+- The frontend API base URL is controlled by `VITE_API_URL` and defaults to `http://localhost:8080`.
+- The backend expects PostgreSQL to be running locally unless Spring datasource environment variables are provided.
 - API keys and database passwords should be provided via environment variables and never committed to Git.
+
+## Deployment
+
+### Frontend on Vercel
+
+The repo includes `vercel.json`, so Vercel can build the frontend from the root repository.
+
+Set this environment variable in Vercel after deploying the backend:
+
+```text
+VITE_API_URL=https://your-winflow-api.onrender.com
+```
+
+Then redeploy the Vercel project.
+
+### Backend on Render
+
+The repo includes `render.yaml` and a Dockerfile for the Spring Boot backend.
+
+Recommended flow:
+
+1. Open Render and create a new Blueprint from this GitHub repository.
+2. Render will create:
+   - `winflow-api` web service
+   - `winflow-db` PostgreSQL database
+3. Add the secret environment variable:
+
+```text
+ODDS_API_KEY=your_odds_api_key
+```
+
+4. Deploy the backend and copy the backend URL.
+5. Put that URL in Vercel as `VITE_API_URL` and redeploy the frontend.
 
 ## Portfolio value
 

@@ -6,7 +6,7 @@ import com.winflow.winflow.entity.AppUser;
 import com.winflow.winflow.service.AppUserService;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(originPatterns = {"http://localhost:5173", "https://*.vercel.app"})
 @RestController
 @RequestMapping("/api/users")
 public class AppUserController {

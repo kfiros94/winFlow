@@ -4,7 +4,7 @@ import com.winflow.winflow.service.GuessService;
 import com.winflow.winflow.service.SportMatchService;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(originPatterns = {"http://localhost:5173", "https://*.vercel.app"})
 
 @RestController
 @RequestMapping("/api/admin")

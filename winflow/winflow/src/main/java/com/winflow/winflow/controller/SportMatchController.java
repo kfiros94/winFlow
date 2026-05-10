@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(originPatterns = {"http://localhost:5173", "https://*.vercel.app"})
 @RestController // Tells Spring: "This class listens for internet traffic and replies with JSON"
 @RequestMapping("/api/matches") // The base URL for everything in this class
 public class SportMatchController {
