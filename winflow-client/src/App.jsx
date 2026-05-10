@@ -538,7 +538,10 @@ function AuthScreen({ onAuthSuccess }) {
       if (!res.ok) throw new Error(await res.text() || t.somethingWrong);
       onAuthSuccess(await res.json());
     } catch (err) {
-      setError(err.message);
+      const message = err instanceof TypeError
+        ? 'The server is waking up. Please wait 30 seconds and try again.'
+        : err.message;
+      setError(message);
     } finally {
       setLoading(false);
     }
