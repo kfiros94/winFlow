@@ -40,6 +40,11 @@ const TRANSLATIONS = {
     today:            'היום',
     tomorrow:         'מחר',
     matchCount:       (n) => `${n} ${n === 1 ? 'משחק' : 'משחקים'}`,
+    israelTime:       'שעון ישראל',
+    searchPlaceholder:'חפש קבוצה או ליגה...',
+    boardTitle:       'לוח משחקים חכם',
+    boardSubtitle:    'משחקים מסודרים לפי יום, מדינה וליגה — עם מכפילים בזמן אמת',
+    hotMarkets:       'שווקים חמים',
     home:             'בית',
     draw:             'תיקו',
     away:             'חוץ',
@@ -110,6 +115,11 @@ const TRANSLATIONS = {
     today:            'Today',
     tomorrow:         'Tomorrow',
     matchCount:       (n) => `${n} match${n !== 1 ? 'es' : ''}`,
+    israelTime:       'Israel time',
+    searchPlaceholder:'Search team or league...',
+    boardTitle:       'Smart Match Board',
+    boardSubtitle:    'Matches grouped by day, country and league — with live market odds',
+    hotMarkets:       'Hot markets',
     home:             'HOME',
     draw:             'DRAW',
     away:             'AWAY',
@@ -357,29 +367,77 @@ function groupLeaguesByCountry(leagueNames) {
   });
 }
 
-function dayLabel(dateStr, t, lang) {
-  const date = new Date(dateStr);
-  const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(today.getDate() + 1);
-  const sameDay = (a, b) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-  if (sameDay(date, today))    return t.today;
-  if (sameDay(date, tomorrow)) return t.tomorrow;
-  const locale = lang === 'he' ? 'he-IL' : 'en-GB';
-  return date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' });
+const ISRAEL_TIME_ZONE = 'Asia/Jerusalem';
+
+function israelDateParts(dateStr) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ISRAEL_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(new Date(dateStr)).map(p => [p.type, p.value]));
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), key: `${parts.year}-${parts.month}-${parts.day}` };
 }
 
-function groupByDay(matches, t, lang) {
+function israelTodayParts(offsetDays = 0) {
+  const base = new Date();
+  base.setDate(base.getDate() + offsetDays);
+  return israelDateParts(base.toISOString());
+}
+
+function dayLabel(dateStr, t, lang) {
+  const matchDay = israelDateParts(dateStr);
+  const today = israelTodayParts(0);
+  const tomorrow = israelTodayParts(1);
+  if (matchDay.key === today.key) return t.today;
+  if (matchDay.key === tomorrow.key) return t.tomorrow;
+  const locale = lang === 'he' ? 'he-IL' : 'en-GB';
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: ISRAEL_TIME_ZONE,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(dateStr));
+}
+
+function formatIsraelTime(dateStr, lang) {
+  const locale = lang === 'he' ? 'he-IL' : 'en-GB';
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: ISRAEL_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateStr));
+}
+
+function minutesUntil(dateStr) {
+  return Math.round((new Date(dateStr).getTime() - Date.now()) / 60000);
+}
+
+function groupByDayAndLeague(matches, t, lang) {
   const groups = {};
-  for (const match of matches) {
-    const key = new Date(match.startTime).toDateString();
-    if (!groups[key]) groups[key] = { label: dayLabel(match.startTime, t, lang), matches: [] };
+  const sorted = [...matches].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+  for (const match of sorted) {
+    const key = israelDateParts(match.startTime).key;
+    if (!groups[key]) groups[key] = { key, label: dayLabel(match.startTime, t, lang), matches: [], leagues: {} };
     groups[key].matches.push(match);
+
+    const leagueName = match.leagueName || (match.sportType === 'NBA' ? 'NBA' : 'Other');
+    if (!groups[key].leagues[leagueName]) {
+      groups[key].leagues[leagueName] = {
+        leagueName,
+        ...getLeagueMeta(leagueName),
+        matches: [],
+      };
+    }
+    groups[key].leagues[leagueName].matches.push(match);
   }
-  return Object.values(groups);
+
+  return Object.values(groups).map(group => ({
+    ...group,
+    leagues: Object.values(group.leagues).sort((a, b) => a.leagueName.localeCompare(b.leagueName)),
+  }));
 }
 
 // Returns matches starting between now and 3 hours from now
@@ -393,9 +451,10 @@ function getStartingSoonMatches(matches) {
 }
 
 // ─────────────────────────────────────────────
-// GMT CLOCK
+// ISRAEL CLOCK
 // ─────────────────────────────────────────────
-function GmtClock() {
+function IsraelClock() {
+  const { t, lang } = useLang();
   const [time, setTime] = useState(() => new Date());
 
   useEffect(() => {
@@ -403,14 +462,20 @@ function GmtClock() {
     return () => clearInterval(id);
   }, []);
 
-  const hh = String(time.getHours()).padStart(2, '0');
-  const mm = String(time.getMinutes()).padStart(2, '0');
-  const ss = String(time.getSeconds()).padStart(2, '0');
+  const locale = lang === 'he' ? 'he-IL' : 'en-GB';
+  const formatted = new Intl.DateTimeFormat(locale, {
+    timeZone: ISRAEL_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(time);
 
   return (
-    <span className="font-mono text-sm tabular-nums text-gray-400 tracking-wider">
-      {hh}:{mm}:{ss}
-    </span>
+    <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1">
+      <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" />
+      <span className="font-mono text-xs tabular-nums text-emerald-200 tracking-wider">{formatted}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400/70">{t.israelTime}</span>
+    </div>
   );
 }
 
@@ -634,63 +699,72 @@ function TeamLogo({ src, name, className = 'w-10 h-10' }) {
 function MatchCard({ match, betAmount, onBet }) {
   const { t, lang } = useLang();
   const isSoccer = match.sportType === 'SOCCER';
-  const meta = LEAGUE_META[match.leagueName] || { emoji: '⚽' };
-  const time = new Date(match.startTime).toLocaleTimeString(lang === 'he' ? 'he-IL' : 'en-GB', {
-    hour: '2-digit', minute: '2-digit',
-  });
+  const leagueMeta = getLeagueMeta(match.leagueName || (match.sportType === 'NBA' ? 'NBA' : 'Other'));
+  const sportMeta = LEAGUE_META[match.leagueName] || { emoji: match.sportType === 'NBA' ? '🏀' : '⚽' };
+  const time = formatIsraelTime(match.startTime, lang);
+  const mins = minutesUntil(match.startTime);
+  const startingSoon = mins > 0 && mins <= 180;
+
+  const OddButton = ({ label, odds, onClick, accent = 'blue' }) => {
+    const accentClasses = accent === 'yellow'
+      ? 'hover:border-yellow-300/70 hover:bg-yellow-400/15 hover:text-yellow-100'
+      : 'hover:border-emerald-300/70 hover:bg-emerald-400/15 hover:text-emerald-100';
+    return (
+      <button onClick={onClick}
+        className={`group rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-3 text-white shadow-inner shadow-white/5 transition-all duration-200 hover:-translate-y-0.5 ${accentClasses} cursor-pointer`}>
+        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 group-hover:text-current">{label}</span>
+        <span className="mt-1 block text-xl font-black tabular-nums">{Number(odds).toFixed(2)}</span>
+      </button>
+    );
+  };
 
   return (
-    <div className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-xl hover:border-blue-500/60 transition-all duration-300">
-      {/* League + time */}
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-xs font-semibold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full">
-          {meta.emoji} {match.leagueName}
-        </span>
-        <span className="text-xs text-gray-500">{time}</span>
-      </div>
+    <div className="relative overflow-hidden rounded-[1.7rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-black/30 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300/40 hover:shadow-emerald-950/30">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-500" />
+      <div className="absolute -end-12 -top-16 h-36 w-36 rounded-full bg-emerald-400/10 blur-3xl" />
 
-      {/* Teams row with logos */}
-      <div className="flex items-center justify-between mb-5 gap-2">
-        {/* Home team */}
-        <div className="flex flex-col items-center gap-1.5 w-[42%]">
-          <TeamLogo src={match.homeTeamLogo} name={match.homeTeam} />
-          <span className="text-xs font-bold text-white text-center leading-tight line-clamp-2">
-            {match.homeTeam}
-          </span>
+      <div className="relative mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            {leagueMeta.flagUrl
+              ? <img src={leagueMeta.flagUrl} alt={leagueMeta.country} className="h-4 w-6 rounded-[3px] object-cover shadow" />
+              : <span className="text-base">{sportMeta.emoji}</span>}
+            <span className="truncate text-xs font-black uppercase tracking-[0.18em] text-sky-200">{match.leagueName || 'NBA'}</span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500">{leagueMeta.country} · {t.israelTime}</p>
         </div>
 
-        <span className="text-xs font-bold text-gray-600 shrink-0">VS</span>
-
-        {/* Away team */}
-        <div className="flex flex-col items-center gap-1.5 w-[42%]">
-          <TeamLogo src={match.awayTeamLogo} name={match.awayTeam} />
-          <span className="text-xs font-bold text-white text-center leading-tight line-clamp-2">
-            {match.awayTeam}
-          </span>
+        <div className="text-end">
+          <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-mono text-sm font-bold text-white tabular-nums">
+            {time}
+          </div>
+          {startingSoon && <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">🔥 {t.navStartingSoon}</p>}
         </div>
       </div>
 
-      {/* Bet buttons */}
+      <div className="relative mb-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-white/5 bg-black/20 p-4">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <TeamLogo src={match.homeTeamLogo} name={match.homeTeam} className="h-14 w-14" />
+          <span className="min-h-[2.2rem] text-sm font-black leading-tight text-white line-clamp-2">{match.homeTeam}</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-1">
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black tracking-[0.22em] text-slate-500">VS</span>
+          <span className="text-[10px] text-slate-600">{sportMeta.emoji}</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-2 text-center">
+          <TeamLogo src={match.awayTeamLogo} name={match.awayTeam} className="h-14 w-14" />
+          <span className="min-h-[2.2rem] text-sm font-black leading-tight text-white line-clamp-2">{match.awayTeam}</span>
+        </div>
+      </div>
+
       <div className={`grid gap-2 ${isSoccer && match.drawOdds ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        <button onClick={() => onBet(match.id, 'HOME_WIN', match.homeTeam)}
-          className="bg-gray-700/50 hover:bg-blue-600 text-white py-2.5 rounded-xl font-bold transition-colors border border-gray-600 hover:border-blue-500 flex flex-col items-center cursor-pointer">
-          <span className="text-[10px] text-gray-400 mb-0.5">{t.home}</span>
-          <span>{match.homeWinOdds}</span>
-        </button>
-
+        <OddButton label={t.home} odds={match.homeWinOdds} onClick={() => onBet(match.id, 'HOME_WIN', match.homeTeam)} />
         {isSoccer && match.drawOdds && (
-          <button onClick={() => onBet(match.id, 'DRAW', t.draw)}
-            className="bg-gray-700/50 hover:bg-yellow-600 text-white py-2.5 rounded-xl font-bold transition-colors border border-gray-600 hover:border-yellow-500 flex flex-col items-center cursor-pointer">
-            <span className="text-[10px] text-gray-400 mb-0.5">{t.draw}</span>
-            <span>{match.drawOdds}</span>
-          </button>
+          <OddButton label={t.draw} odds={match.drawOdds} accent="yellow" onClick={() => onBet(match.id, 'DRAW', t.draw)} />
         )}
-
-        <button onClick={() => onBet(match.id, 'AWAY_WIN', match.awayTeam)}
-          className="bg-gray-700/50 hover:bg-blue-600 text-white py-2.5 rounded-xl font-bold transition-colors border border-gray-600 hover:border-blue-500 flex flex-col items-center cursor-pointer">
-          <span className="text-[10px] text-gray-400 mb-0.5">{t.away}</span>
-          <span>{match.awayWinOdds}</span>
-        </button>
+        <OddButton label={t.away} odds={match.awayWinOdds} onClick={() => onBet(match.id, 'AWAY_WIN', match.awayTeam)} />
       </div>
     </div>
   );
@@ -1013,6 +1087,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const [syncing, setSyncing] = useState(false);
   const [selectedSport, setSelectedSport] = useState('SOCCER');
   const [selectedLeague, setSelectedLeague] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [apiLeagues, setApiLeagues] = useState([]);
   // Modal + toast state
   const [pendingBet, setPendingBet] = useState(null); // { matchId, prediction, teamName }
@@ -1060,9 +1135,15 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
   const filteredMatches = matches
     .filter(m => m.sportType === selectedSport)
-    .filter(m => selectedSport === 'NBA' || selectedLeague === 'All' || m.leagueName === selectedLeague);
+    .filter(m => selectedSport === 'NBA' || selectedLeague === 'All' || m.leagueName === selectedLeague)
+    .filter(m => {
+      const query = searchQuery.trim().toLowerCase();
+      if (!query) return true;
+      return [m.homeTeam, m.awayTeam, m.leagueName].filter(Boolean).some(value => value.toLowerCase().includes(query));
+    });
 
-  const dayGroups = groupByDay(filteredMatches, t, lang);
+  const dayGroups = groupByDayAndLeague(filteredMatches, t, lang);
+  const startingSoonCount = getStartingSoonMatches(filteredMatches).length;
 
   const handleBetAmountChange = (e) => {
     const val = Number(e.target.value);
@@ -1105,7 +1186,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const pendingMatch = pendingBet ? matches.find(m => m.id === pendingBet.matchId) : null;
 
   return (
-    <div dir={dir} className="min-h-screen bg-[#121212] text-white font-sans">
+    <div dir={dir} className="min-h-screen bg-[radial-gradient(circle_at_top_left,#123124_0,#0f172a_28%,#05070c_68%)] text-white font-sans">
 
       {/* Bet confirmation modal */}
       {pendingBet && pendingMatch && (
@@ -1125,14 +1206,14 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
       {/* Navbar */}
-      <nav className="sticky top-0 z-10 bg-[#0d0d0d] border-b border-white/5 shadow-lg shadow-black/40">
+      <nav className="sticky top-0 z-10 border-b border-white/10 bg-slate-950/85 shadow-lg shadow-black/40 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
 
           {/* Left: Logo + divider + clock */}
           <div className="flex items-center gap-3 shrink-0">
             <img src={winflowLogo} alt="WinFlow" className="h-16 w-auto" />
             <span className="w-px h-4 bg-gray-700" />
-            <GmtClock />
+            <IsraelClock />
           </div>
 
           {/* Center: Page tabs */}
@@ -1196,37 +1277,73 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
           onBetAmountChange={handleBetAmountChange} betAmountError={betAmountError} />
       )}
 
-      <main className={`max-w-7xl mx-auto px-8 py-8 ${currentPage !== 'matches' ? 'hidden' : ''}`}>
+      <main className={`max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-8 ${currentPage !== 'matches' ? 'hidden' : ''}`}>
 
-        {/* Sport & League Dropdowns */}
-        <div className="flex flex-wrap items-end gap-4 mb-8">
-          {/* Sport Dropdown */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">{t.sportLabel}</label>
-            <select value={selectedSport} onChange={e => handleSportChange(e.target.value)}
-              className="bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none focus:border-blue-500 cursor-pointer min-w-[140px]">
-              <option value="SOCCER">⚽ {t.soccer}</option>
-              <option value="NBA">🏀 {t.nba}</option>
-            </select>
+        {/* Premium board header */}
+        <section className="mb-8 overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 shadow-2xl shadow-black/30 md:p-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]" />
+                {t.hotMarkets}
+              </div>
+              <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">{t.boardTitle}</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{t.boardSubtitle}</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 text-center">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Matches</p>
+                <p className="text-2xl font-black text-white tabular-nums">{filteredMatches.length}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Soon</p>
+                <p className="text-2xl font-black text-amber-300 tabular-nums">{startingSoonCount}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Stake</p>
+                <p className="text-2xl font-black text-emerald-300 tabular-nums">{betAmount}</p>
+              </div>
+            </div>
           </div>
 
-          {/* League Dropdown (Soccer only) */}
-          {selectedSport === 'SOCCER' && (
+          <div className="mt-6 grid gap-4 lg:grid-cols-[auto_auto_1fr_auto] lg:items-end">
+            {/* Sport Dropdown */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">{t.leagueLabel}</label>
-              <LeagueDropdown value={selectedLeague} onChange={setSelectedLeague} t={t} leagues={apiLeagues} />
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t.sportLabel}</label>
+              <select value={selectedSport} onChange={e => handleSportChange(e.target.value)}
+                className="min-w-[150px] cursor-pointer rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none transition hover:border-emerald-300/50 focus:border-emerald-300/70">
+                <option value="SOCCER">⚽ {t.soccer}</option>
+                <option value="NBA">🏀 {t.nba}</option>
+              </select>
             </div>
-          )}
-        </div>
 
-        {/* Bet Amount */}
-        <div className="flex items-center gap-3 mb-8">
-          <label className="text-gray-400 text-sm">{t.stake}</label>
-          <input type="number" min={10} value={betAmount} onChange={handleBetAmountChange}
-            className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-white w-24 text-sm focus:outline-none focus:border-blue-500" />
-          <span className="text-yellow-500 text-sm">🪙</span>
-          {betAmountError && <span className="text-red-400 text-xs">{betAmountError}</span>}
-        </div>
+            {/* League Dropdown (Soccer only) */}
+            {selectedSport === 'SOCCER' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t.leagueLabel}</label>
+                <LeagueDropdown value={selectedLeague} onChange={setSelectedLeague} t={t} leagues={apiLeagues} />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Search</label>
+              <input type="search" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t.searchPlaceholder}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-slate-600 hover:border-sky-300/40 focus:border-sky-300/70" />
+            </div>
+
+            {/* Bet Amount */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t.stake}</label>
+              <div className="flex items-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-3 py-2">
+                <input type="number" min={10} value={betAmount} onChange={handleBetAmountChange}
+                  className="w-20 bg-transparent text-sm font-black text-white outline-none" />
+                <span className="text-yellow-300">🪙</span>
+              </div>
+              {betAmountError && <span className="text-red-400 text-xs">{betAmountError}</span>}
+            </div>
+          </div>
+        </section>
 
         {/* Match List */}
         {loadingMatches ? (
@@ -1241,17 +1358,40 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
         ) : (
           <div className="space-y-10">
             {dayGroups.map(group => (
-              <section key={group.label}>
-                <div className="flex items-center gap-3 mb-4">
-                  <h2 className="text-lg font-bold text-white">{group.label}</h2>
-                  <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
+              <section key={group.key}>
+                <div className="mb-5 flex items-center gap-3">
+                  <h2 className="text-xl font-black text-white">{group.label}</h2>
+                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-bold text-slate-400">
                     {t.matchCount(group.matches.length)}
                   </span>
-                  <div className="flex-1 h-px bg-gray-800" />
+                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
+                    {t.israelTime}
+                  </span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {group.matches.map(match => (
-                    <MatchCard key={match.id} match={match} betAmount={betAmount} onBet={handleBet} />
+
+                <div className="space-y-6">
+                  {group.leagues.map(league => (
+                    <div key={`${group.key}-${league.leagueName}`} className="rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-3 md:p-4">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          {league.flagUrl
+                            ? <img src={league.flagUrl} alt={league.country} className="h-4 w-6 rounded-[3px] object-cover" />
+                            : <span>🌐</span>}
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-black text-sky-100">{league.leagueName}</h3>
+                            <p className="text-[11px] text-slate-500">{league.country}</p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-bold text-slate-400">{t.matchCount(league.matches.length)}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {league.matches.map(match => (
+                          <MatchCard key={match.id} match={match} betAmount={betAmount} onBet={handleBet} />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </section>
