@@ -40,6 +40,7 @@ const TRANSLATIONS = {
     sportLabel:       'ספורט',
     leagueLabel:      'ליגה',
     noMatches:        'אין משחקים קרובים ב-5 הימים הבאים.',
+    selectLeague:     'בחר ליגה מהתפריט כדי לראות משחקים 👇',
     today:            'היום',
     tomorrow:         'מחר',
     matchCount:       (n) => `${n} ${n === 1 ? 'משחק' : 'משחקים'}`,
@@ -118,6 +119,7 @@ const TRANSLATIONS = {
     sportLabel:       'Sport',
     leagueLabel:      'League',
     noMatches:        'No upcoming matches in the next 5 days.',
+    selectLeague:     'Select a league from the dropdown to see matches 👇',
     today:            'Today',
     tomorrow:         'Tomorrow',
     matchCount:       (n) => `${n} match${n !== 1 ? 'es' : ''}`,
@@ -1165,15 +1167,23 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [toast, setToast] = useState(null); // string message
 
-  const loadMatches = () => {
+  // Load matches for a specific league — or show "pick a league" hint
+  const loadMatchesForLeague = (league) => {
+    if (!league || league === 'All') {
+      setMatches([]);
+      setLoadingMatches(false);
+      return;
+    }
     setLoadingMatches(true);
-    fetch(`${API_BASE_URL}/api/matches`)
+    const url = `${API_BASE_URL}/api/matches?league=${encodeURIComponent(league)}`;
+    fetch(url)
       .then(res => res.json())
       .then(data => { setMatches(data); setLoadingMatches(false); })
       .catch(() => setLoadingMatches(false));
   };
 
-  useEffect(() => { loadMatches(); }, []);
+  // Fetch matches when league changes
+  useEffect(() => { loadMatchesForLeague(selectedLeague); }, [selectedLeague]);
 
   useEffect(() => {
     if (selectedSport !== 'SOCCER') { setApiLeagues([]); return; }
@@ -1186,13 +1196,19 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const handleSportChange = (sport) => {
     setSelectedSport(sport);
     setSelectedLeague('All');
+    setSearchQuery('');
+  };
+
+  const handleLeagueChange = (league) => {
+    setSelectedLeague(league);
+    setSearchQuery('');
   };
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       await fetch(`${API_BASE_URL}/api/admin/sync`, { method: 'POST' });
-      loadMatches();
+      loadMatchesForLeague(selectedLeague);
     } catch (err) {
       alert(t.syncFailed(err.message));
     } finally {
@@ -1200,17 +1216,15 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
     }
   };
 
-  const filteredMatches = matches
-    .filter(m => m.sportType === selectedSport)
-    .filter(m => selectedSport === 'NBA' || selectedLeague === 'All' || m.leagueName === selectedLeague)
-    .filter(m => {
-      const query = searchQuery.trim().toLowerCase();
-      if (!query) return true;
-      return [m.homeTeam, m.awayTeam, m.leagueName].filter(Boolean).some(value => value.toLowerCase().includes(query));
-    });
+  // Matches already filtered by league via API; search still applies client-side
+  const searchedMatches = matches.filter(m => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return [m.homeTeam, m.awayTeam, m.leagueName].filter(Boolean).some(value => value.toLowerCase().includes(query));
+  });
 
-  const dayGroups = groupByDayAndLeague(filteredMatches, t, lang);
-  const startingSoonCount = getStartingSoonMatches(filteredMatches).length;
+  const dayGroups = groupByDayAndLeague(searchedMatches, t, lang);
+  const startingSoonCount = getStartingSoonMatches(searchedMatches).length;
 
   const handleBetAmountChange = (e) => {
     const val = Number(e.target.value);
@@ -1389,7 +1403,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
             {selectedSport === 'SOCCER' && (
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t.leagueLabel}</label>
-                <LeagueDropdown value={selectedLeague} onChange={setSelectedLeague} t={t} leagues={apiLeagues} />
+                <LeagueDropdown value={selectedLeague} onChange={handleLeagueChange} t={t} leagues={apiLeagues} />
               </div>
             )}
 
@@ -1417,10 +1431,12 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
           <div className="flex justify-center items-center mt-32">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
           </div>
-        ) : dayGroups.length === 0 ? (
+        ) : selectedLeague === 'All' || matches.length === 0 ? (
           <div className="text-center text-gray-500 mt-32">
             <p className="text-4xl mb-4">{selectedSport === 'NBA' ? '🏀' : '⚽'}</p>
-            <p className="text-lg">{t.noMatches}</p>
+            <p className="text-lg font-semibold text-gray-400">
+              {selectedLeague === 'All' ? t.selectLeague : t.noMatches}
+            </p>
           </div>
         ) : (
           <div className="space-y-10">

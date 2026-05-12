@@ -106,6 +106,17 @@ public class SportMatchService {
     }
 
     /**
+     * Returns PENDING matches for a specific league within the next 5 days.
+     */
+    public List<SportMatch> getAvailableMatchesForLeague(String leagueName) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fiveDaysAhead = now.plusDays(5);
+        return matchRepository.findByLeagueNameAndStatusAndStartTimeBetween(
+                leagueName, SportMatch.MatchStatus.PENDING, now, fiveDaysAhead
+        );
+    }
+
+    /**
      * Runs on startup — loops through every configured league and syncs live matches.
      */
     @PostConstruct

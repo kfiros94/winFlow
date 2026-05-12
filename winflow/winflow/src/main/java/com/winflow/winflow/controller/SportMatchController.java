@@ -19,9 +19,13 @@ public class SportMatchController {
 
     /**
      * When a browser goes to http://localhost:8080/api/matches, this method fires!
+     * If a ?league= param is provided, returns matches for that specific league only.
      */
     @GetMapping
-    public List<SportMatch> getAllAvailableMatches() {
+    public List<SportMatch> getMatches(@RequestParam(required = false) String league) {
+        if (league != null && !league.isEmpty() && !league.equals("All")) {
+            return matchService.getAvailableMatchesForLeague(league);
+        }
         return matchService.getAvailableMatches();
     }
 

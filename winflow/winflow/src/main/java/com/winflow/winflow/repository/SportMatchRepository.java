@@ -30,4 +30,13 @@ public interface SportMatchRepository extends JpaRepository<SportMatch, Long> {
     // Returns all distinct league names ever synced for a given sport
     @Query("SELECT DISTINCT m.leagueName FROM SportMatch m WHERE m.sportType = :sportType AND m.leagueName IS NOT NULL ORDER BY m.leagueName")
     List<String> findDistinctLeagueNamesBySportType(@Param("sportType") SportMatch.SportType sportType);
+
+    // Finds PENDING matches for a specific league within the next 5 days
+    @Query("SELECT m FROM SportMatch m WHERE m.leagueName = :leagueName AND m.status = :status AND m.startTime BETWEEN :from AND :to ORDER BY m.startTime ASC")
+    List<SportMatch> findByLeagueNameAndStatusAndStartTimeBetween(
+            @Param("leagueName") String leagueName,
+            @Param("status") SportMatch.MatchStatus status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
 }
