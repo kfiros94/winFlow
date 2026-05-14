@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import winflowLogo from './assets/winflowLogo.png';
+import winflowMascot from './assets/winflowMascot.png';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 const MIN_BET_AMOUNT = 10;
@@ -217,7 +218,10 @@ const LEAGUE_META = {
   'Serie A':                 { emoji: '🇮🇹' },
   'Ligue 1':                 { emoji: '🇫🇷' },
   'Bundesliga':              { emoji: '🇩🇪' },
-  'MLS':                    { emoji: '🇺🇸' },
+  'MLS':                     { emoji: '🇺🇸' },
+  'Liga MX':                 { emoji: '🇲🇽' },
+  'Eredivisie':              { emoji: '🇳🇱' },
+  'Primeira Liga':           { emoji: '🇵🇹' },
   'UEFA Nations League':     { emoji: '🏆' },
   'FIFA World Cup':          { emoji: '🌍' },
 };
@@ -1094,30 +1098,48 @@ function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, onBetA
 
 function SportEmptyState({ selectedSport, t }) {
   const isBasketball = selectedSport === 'NBA';
-  const ball = isBasketball ? '🏀' : '⚽';
-  const glow = isBasketball ? 'from-orange-500/25' : 'from-emerald-500/25';
+  const primaryGlow = isBasketball ? 'from-orange-500/30' : 'from-emerald-500/30';
+  const accent = isBasketball ? 'bg-orange-400' : 'bg-emerald-400';
 
   return (
-    <div className="mt-24 flex flex-col items-center justify-center text-center">
-      <div className={`relative mb-8 h-52 w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${glow} via-slate-900/70 to-slate-950 shadow-2xl shadow-black/30`}>
-        <div className="absolute inset-x-8 bottom-10 h-16 rounded-[50%] border-2 border-dashed border-white/10" />
-        <div className="absolute bottom-14 left-1/2 h-1.5 w-48 -translate-x-1/2 rounded-full bg-emerald-300/20 blur-sm" />
+    <div className="mt-16 flex flex-col items-center justify-center text-center md:mt-20">
+      <style>{`
+        @keyframes mascotFloat { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-16px) rotate(1deg); } }
+        @keyframes orbitBall { from { transform: rotate(0deg) translateX(132px) rotate(0deg); } to { transform: rotate(360deg) translateX(132px) rotate(-360deg); } }
+        @keyframes stadiumSweep { 0%, 100% { opacity: .25; transform: translateX(-45%) skewX(-18deg); } 50% { opacity: .75; transform: translateX(45%) skewX(-18deg); } }
+        @keyframes scorePulse { 0%, 100% { box-shadow: 0 0 18px rgba(16,185,129,.25); } 50% { box-shadow: 0 0 38px rgba(16,185,129,.55); } }
+      `}</style>
 
-        <div className="absolute left-8 top-8 h-16 w-16 rounded-full border border-white/10 bg-white/[0.04] animate-pulse" />
-        <div className="absolute right-10 top-12 h-10 w-10 rounded-full border border-sky-300/20 bg-sky-300/10 animate-ping" />
+      <div className={`relative mb-8 h-[28rem] w-full max-w-2xl overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br ${primaryGlow} via-slate-900/80 to-slate-950 shadow-2xl shadow-black/40`}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,255,255,0.13),transparent_34%),radial-gradient(circle_at_18%_78%,rgba(34,197,94,0.18),transparent_28%),radial-gradient(circle_at_82%_72%,rgba(59,130,246,0.16),transparent_30%)]" />
+        <div className="absolute inset-x-10 bottom-12 h-28 rounded-[50%] border-2 border-dashed border-white/15" />
+        <div className="absolute inset-x-16 bottom-24 h-1 rounded-full bg-emerald-300/25 blur-sm" />
+        <div className="absolute left-1/2 top-8 h-64 w-64 -translate-x-1/2 rounded-full border border-white/10 bg-white/[0.03]" />
+        <div className="absolute left-1/2 top-12 h-52 w-52 -translate-x-1/2 rounded-full border border-emerald-300/20" style={{ animation: 'scorePulse 2.8s ease-in-out infinite' }} />
 
-        <div className="absolute left-1/2 top-14 -translate-x-1/2 animate-bounce text-7xl drop-shadow-[0_18px_24px_rgba(0,0,0,0.45)]">
-          {ball}
+        <div className="absolute left-1/2 top-28 h-1 w-72 origin-center rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent blur-sm" style={{ animation: 'stadiumSweep 3.2s ease-in-out infinite' }} />
+        <div className="absolute left-8 top-10 h-20 w-20 rounded-full border border-white/10 bg-white/[0.05] animate-pulse" />
+        <div className="absolute right-10 top-12 h-12 w-12 rounded-full border border-sky-300/20 bg-sky-300/10 animate-ping" />
+        <div className="absolute bottom-10 left-8 right-8 grid grid-cols-5 gap-2 opacity-60">
+          {Array.from({ length: 10 }).map((_, i) => <span key={i} className="h-7 rounded-t-xl bg-white/[0.06]" />)}
         </div>
 
-        <div className="absolute bottom-8 left-10 h-16 w-2 rotate-12 rounded-full bg-white/10" />
-        <div className="absolute bottom-8 right-10 h-16 w-2 -rotate-12 rounded-full bg-white/10" />
-        <div className="absolute bottom-16 left-10 right-10 h-2 rounded-full bg-white/10" />
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950 to-transparent" />
+        <div className="absolute left-1/2 top-20 h-8 w-8 text-4xl" style={{ animation: 'orbitBall 6s linear infinite' }}>{isBasketball ? '🏀' : '⚽'}</div>
+        <div className="absolute left-1/2 top-20 h-8 w-8 text-3xl" style={{ animation: 'orbitBall 7.5s linear infinite reverse' }}>{isBasketball ? '⚽' : '🏀'}</div>
+
+        <img
+          src={winflowMascot}
+          alt="WinFlow 3D mascot"
+          className="absolute bottom-0 left-1/2 z-10 h-[25rem] max-h-[92%] w-auto -translate-x-1/2 object-contain drop-shadow-[0_28px_32px_rgba(0,0,0,0.55)]"
+          style={{ animation: 'mascotFloat 3.6s ease-in-out infinite' }}
+        />
+
+        <div className={`absolute bottom-8 left-1/2 z-0 h-5 w-64 -translate-x-1/2 rounded-full ${accent}/25 blur-xl`} />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
       </div>
 
-      <h2 className="text-2xl font-black text-white">{t.selectLeague}</h2>
-      <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">{t.selectLeagueHint}</p>
+      <h2 className="text-2xl font-black text-white md:text-3xl">{t.selectLeague}</h2>
+      <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400 md:text-base">{t.selectLeagueHint}</p>
     </div>
   );
 }
@@ -1143,7 +1165,7 @@ function Toast({ message, onDismiss }) {
 // ─────────────────────────────────────────────
 // BET CONFIRM MODAL
 // ─────────────────────────────────────────────
-function BetConfirmModal({ pendingBet, match, betAmount, onConfirm, onCancel, loading, t, dir }) {
+function BetConfirmModal({ pendingBet, match, betAmount, betAmountError, onBetAmountChange, onBetAmountBlur, onBetAmountStep, onConfirm, onCancel, loading, t, dir }) {
   // Close on Escape key
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onCancel(); };
@@ -1155,7 +1177,8 @@ function BetConfirmModal({ pendingBet, match, betAmount, onConfirm, onCancel, lo
   const odds = prediction === 'HOME_WIN' ? match.homeWinOdds
              : prediction === 'AWAY_WIN' ? match.awayWinOdds
              : match.drawOdds;
-  const potentialWin = Math.round(betAmount * (odds || 1));
+  const safeBetAmount = Number(betAmount) || MIN_BET_AMOUNT;
+  const potentialWin = Math.round(safeBetAmount * (odds || 1));
   const predLabel = { HOME_WIN: t.home, AWAY_WIN: t.away, DRAW: t.draw }[prediction] || prediction;
 
   return (
@@ -1195,7 +1218,19 @@ function BetConfirmModal({ pendingBet, match, betAmount, onConfirm, onCancel, lo
         <div className="px-6 py-2">
           <SummaryRow label={t.yourPick}    value={`${predLabel} — ${teamName}`} />
           <SummaryRow label={t.oddsLabel}   value={odds?.toFixed(2) ?? '—'} />
-          <SummaryRow label={t.stake}       value={`${betAmount} 🪙`} />
+          <div className="flex items-center justify-between gap-4 border-b border-gray-800/70 py-3 last:border-b-0">
+            <span className="text-sm text-gray-500">{t.stake}</span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2 rounded-xl border border-yellow-300/20 bg-yellow-300/10 px-2 py-1.5">
+                <button type="button" onClick={() => onBetAmountStep(-BET_AMOUNT_STEP)} disabled={loading} className="h-7 w-7 rounded-lg text-lg font-black text-yellow-100 transition hover:bg-yellow-300/15 disabled:opacity-40">−</button>
+                <input type="number" min={MIN_BET_AMOUNT} max={MAX_BET_AMOUNT} step={BET_AMOUNT_STEP} value={betAmount} onChange={onBetAmountChange} onBlur={onBetAmountBlur} disabled={loading}
+                  className="w-20 bg-transparent text-center text-sm font-black text-white outline-none disabled:opacity-60" />
+                <button type="button" onClick={() => onBetAmountStep(BET_AMOUNT_STEP)} disabled={loading} className="h-7 w-7 rounded-lg text-lg font-black text-yellow-100 transition hover:bg-yellow-300/15 disabled:opacity-40">+</button>
+                <span className="text-yellow-300">🪙</span>
+              </div>
+              {betAmountError && <span className="max-w-[13rem] text-end text-[11px] leading-4 text-red-400">{betAmountError}</span>}
+            </div>
+          </div>
           <SummaryRow label={t.potentialWin} value={`${potentialWin} 🪙`} highlight />
         </div>
 
@@ -1383,6 +1418,10 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
           pendingBet={pendingBet}
           match={pendingMatch}
           betAmount={betAmount}
+          betAmountError={betAmountError}
+          onBetAmountChange={handleBetAmountChange}
+          onBetAmountBlur={handleBetAmountBlur}
+          onBetAmountStep={adjustBetAmount}
           onConfirm={confirmBet}
           onCancel={() => setPendingBet(null)}
           loading={confirmLoading}

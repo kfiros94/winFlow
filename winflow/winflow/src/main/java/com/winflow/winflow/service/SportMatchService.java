@@ -87,7 +87,10 @@ public class SportMatchService {
         "Serie A",
         "Bundesliga",
         "Ligue 1",
-        "MLS"
+        "MLS",
+        "Liga MX",
+        "Eredivisie",
+        "Primeira Liga"
     );
 
     private final SportMatchRepository matchRepository;
