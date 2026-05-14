@@ -39,4 +39,13 @@ public interface SportMatchRepository extends JpaRepository<SportMatch, Long> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to
     );
+
+    // Finds PENDING matches for multiple leagues within the next 5 days
+    @Query("SELECT m FROM SportMatch m WHERE m.leagueName IN :leagueNames AND m.status = :status AND m.startTime BETWEEN :from AND :to ORDER BY m.startTime ASC")
+    List<SportMatch> findByLeagueNameInAndStatusAndStartTimeBetween(
+            @Param("leagueNames") List<String> leagueNames,
+            @Param("status") SportMatch.MatchStatus status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
 }

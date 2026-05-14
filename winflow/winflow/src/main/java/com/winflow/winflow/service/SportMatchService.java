@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class SportMatchService {
@@ -76,6 +77,20 @@ public class SportMatchService {
         new LeagueConfig("soccer_denmark_superliga",               "Superliga",                      SportMatch.SportType.SOCCER)
     );
 
+    // Keep startup/login fast: only these high-value leagues are synced automatically
+    // and exposed in the selector for now.
+    private static final Set<String> MAIN_LEAGUE_NAMES = Set.of(
+        "NBA",
+        "UEFA Champions League",
+        "UEFA Europa League",
+        "Premier League",
+        "La Liga",
+        "Serie A",
+        "Bundesliga",
+        "Ligue 1",
+        "Israeli Premier League"
+    );
+
     private final SportMatchRepository matchRepository;
     private final OddsApiService oddsApiService;
     private final TheSportsDbService theSportsDbService;
@@ -91,6 +106,7 @@ public class SportMatchService {
     public List<String> getLeaguesBySport(SportMatch.SportType sportType) {
         return LEAGUES.stream()
                 .filter(league -> league.sportType() == sportType)
+                .filter(league -> MAIN_LEAGUE_NAMES.contains(league.leagueName()))
                 .map(LeagueConfig::leagueName)
                 .distinct()
                 .sorted()
@@ -117,13 +133,34 @@ public class SportMatchService {
     }
 
     /**
-     * Runs on startup — loops through every configured league and syncs live matches.
+     * Returns PENDING matches for several selected leagues within the next 5 days.
+     */
+    public List<SportMatch> getAvailableMatchesForLeagues(List<String> leagueNames) {
+        List<String> cleanedLeagueNames = leagueNames.stream()
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .distinct()
+                .toList();
+
+        if (cleanedLeagueNames.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fiveDaysAhead = now.plusDays(5);
+        return matchRepository.findByLeagueNameInAndStatusAndStartTimeBetween(
+                cleanedLeagueNames, SportMatch.MatchStatus.PENDING, now, fiveDaysAhead
+        );
+    }
+
+    /**
+     * Runs on startup — syncs only the main leagues so login/cold-start stays fast.
      */
     @PostConstruct
     public void syncMatchesOnStartup() {
-        log.info("=== WINFLOW: SYNCING ALL LEAGUES ===");
+        log.info("=== WINFLOW: SYNCING MAIN LEAGUES ===");
 
-        for (LeagueConfig league : LEAGUES) {
+        for (LeagueConfig league : LEAGUES.stream().filter(l -> MAIN_LEAGUE_NAMES.contains(l.leagueName())).toList()) {
             log.info("Syncing: {}", league.leagueName());
             List<MatchOddsDTO> matches = oddsApiService.fetchOdds(league.sportKey());
 
@@ -187,7 +224,10 @@ public class SportMatchService {
     }
 
     public List<String> getAllSportKeys() {
-        return LEAGUES.stream().map(LeagueConfig::sportKey).toList();
+        return LEAGUES.stream()
+                .filter(league -> MAIN_LEAGUE_NAMES.contains(league.leagueName()))
+                .map(LeagueConfig::sportKey)
+                .toList();
     }
 
     // Config record — package-accessible so MatchResolutionService can read sport keys

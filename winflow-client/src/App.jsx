@@ -32,6 +32,9 @@ const TRANSLATIONS = {
     soccer:           'כדורגל',
     nba:              'NBA',
     allLeagues:       'כל הליגות',
+    selectedLeagues:  (n) => `${n} ליגות נבחרו`,
+    clearLeagues:     'נקה בחירה',
+    done:             'בוצע',
     searchLeagues:    'חפש ליגה...',
     noLeaguesFound:   'לא נמצאו ליגות',
     close:            'סגור',
@@ -111,6 +114,9 @@ const TRANSLATIONS = {
     soccer:           'Soccer',
     nba:              'NBA',
     allLeagues:       'All Leagues',
+    selectedLeagues:  (n) => `${n} leagues selected`,
+    clearLeagues:     'Clear selection',
+    done:             'Done',
     searchLeagues:    'Search leagues...',
     noLeaguesFound:   'No leagues found',
     close:            'Close',
@@ -528,6 +534,7 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
   const [open, setOpen] = useState(false);
   const [leagueSearch, setLeagueSearch] = useState('');
   const ref = useRef(null);
+  const selectedLeagues = Array.isArray(value) ? value : [];
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -546,45 +553,57 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
     return () => { document.body.style.overflow = previousOverflow; };
   }, [open]);
 
-  // Group the API-returned league names by country using our mapping
   const search = leagueSearch.trim().toLowerCase();
   const filteredLeagues = search
     ? leagues.filter(name => name.toLowerCase().includes(search) || getLeagueMeta(name).country.toLowerCase().includes(search))
     : leagues;
   const grouped = groupLeaguesByCountry(filteredLeagues);
 
-  // Resolve the selected league's flag for the trigger button
-  const selectedMeta = value !== 'All' ? getLeagueMeta(value) : null;
-  const selectedFlag = selectedMeta?.flagUrl ?? null;
-  const selectedLabel = value !== 'All' ? value : t.allLeagues;
+  const selectedLabel = selectedLeagues.length === 0
+    ? t.allLeagues
+    : selectedLeagues.length === 1
+      ? selectedLeagues[0]
+      : t.selectedLeagues(selectedLeagues.length);
+
+  const toggleLeague = (leagueName) => {
+    onChange(selectedLeagues.includes(leagueName)
+      ? selectedLeagues.filter(name => name !== leagueName)
+      : [...selectedLeagues, leagueName]);
+  };
+
+  const clearSelection = () => {
+    onChange([]);
+    setLeagueSearch('');
+  };
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger button */}
       <button type="button" onClick={() => setOpen(o => !o)}
-        className="w-full min-w-0 bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none cursor-pointer sm:min-w-[230px] flex items-center justify-between gap-3">
+        className="w-full min-w-0 bg-gray-800 border border-gray-700 hover:border-gray-500 rounded-xl px-4 py-2.5 text-white text-sm font-semibold focus:outline-none cursor-pointer sm:min-w-[260px] flex items-center justify-between gap-3">
         <span className="flex min-w-0 items-center gap-2">
-          {selectedFlag
-            ? <img src={selectedFlag} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
-            : <span className="text-base">🌍</span>}
+          <span className="text-base">🌍</span>
           <span className="truncate">{selectedLabel}</span>
         </span>
         <span className="text-gray-500 text-[10px]">{open ? '▲' : '▼'}</span>
       </button>
 
-      {/* Dropdown panel */}
       {open && (
         <>
         <button type="button" aria-label={t.close} onClick={() => setOpen(false)}
           className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm sm:hidden" />
-        <div className="fixed inset-x-3 bottom-3 z-50 flex max-h-[75dvh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-gray-900 shadow-2xl sm:absolute sm:bottom-auto sm:start-0 sm:top-full sm:mt-1 sm:max-h-[28rem] sm:min-w-[280px] sm:rounded-xl">
+        <div className="fixed inset-x-3 bottom-3 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-gray-900 shadow-2xl sm:absolute sm:bottom-auto sm:start-0 sm:top-full sm:mt-2 sm:max-h-[30rem] sm:min-w-[340px] sm:rounded-2xl">
 
           <div className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900/95 p-3 backdrop-blur">
-            <div className="mb-2 flex items-center justify-between sm:hidden">
+            <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-bold text-white">{t.leagueLabel}</span>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-gray-300">
-                {t.close}
-              </button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={clearSelection} className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-gray-300 hover:border-red-300/40 hover:text-red-200">
+                  {t.clearLeagues}
+                </button>
+                <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                  {t.done}
+                </button>
+              </div>
             </div>
             <input
               value={leagueSearch}
@@ -595,18 +614,8 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
           </div>
 
           <div className="flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-
-          {/* All Leagues row */}
-          <button type="button" onClick={() => { onChange('All'); setOpen(false); }}
-            className={`w-full px-4 py-2.5 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === 'All' ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
-            <span className="text-base">🌍</span>
-            {t.allLeagues}
-          </button>
-
-          {/* One section per country, sorted International → A–Z → Other */}
           {grouped.map(group => (
             <div key={group.country}>
-              {/* Country header */}
               <div className="px-4 py-1.5 flex items-center gap-2 bg-gray-800/70 border-t border-gray-800">
                 {group.flagUrl
                   ? <img src={group.flagUrl} alt={group.country} className="w-5 h-3.5 object-cover rounded-sm shrink-0" />
@@ -616,16 +625,19 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
                 </span>
               </div>
 
-              {/* League rows — indented under their country */}
               {group.leagues.map(name => {
                 const meta = getLeagueMeta(name);
+                const checked = selectedLeagues.includes(name);
                 return (
-                  <button key={name} type="button" onClick={() => { onChange(name); setOpen(false); }}
-                    className={`w-full px-4 py-2.5 ps-8 text-start text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors ${value === name ? 'text-blue-400 bg-blue-500/10' : 'text-gray-300'}`}>
+                  <button key={name} type="button" onClick={() => toggleLeague(name)}
+                    className={`w-full px-4 py-3 ps-8 text-start text-sm flex items-center gap-3 hover:bg-gray-800 transition-colors ${checked ? 'text-blue-300 bg-blue-500/10' : 'text-gray-300'}`}>
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-md border text-[11px] font-black ${checked ? 'border-blue-300 bg-blue-500 text-white' : 'border-gray-600 text-transparent'}`}>
+                      ✓
+                    </span>
                     {meta.flagUrl
                       ? <img src={meta.flagUrl} alt="" className="w-6 h-4 object-cover rounded-sm shrink-0" />
                       : <span className="text-base">🏆</span>}
-                    {name}
+                    <span className="min-w-0 flex-1 truncate">{name}</span>
                   </button>
                 );
               })}
@@ -1159,7 +1171,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const [betAmountError, setBetAmountError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [selectedSport, setSelectedSport] = useState('SOCCER');
-  const [selectedLeague, setSelectedLeague] = useState('All');
+  const [selectedLeagues, setSelectedLeagues] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [apiLeagues, setApiLeagues] = useState([]);
   // Modal + toast state
@@ -1167,23 +1179,24 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [toast, setToast] = useState(null); // string message
 
-  // Load matches for a specific league — or show "pick a league" hint
-  const loadMatchesForLeague = (league) => {
-    if (!league || league === 'All') {
+  // Load matches for selected leagues — empty selection shows the "pick a league" hint
+  const loadMatchesForLeagues = (leagues) => {
+    if (!leagues.length) {
       setMatches([]);
       setLoadingMatches(false);
       return;
     }
     setLoadingMatches(true);
-    const url = `${API_BASE_URL}/api/matches?league=${encodeURIComponent(league)}`;
+    const leagueParam = leagues.join(',');
+    const url = `${API_BASE_URL}/api/matches?league=${encodeURIComponent(leagueParam)}`;
     fetch(url)
       .then(res => res.json())
       .then(data => { setMatches(data); setLoadingMatches(false); })
       .catch(() => setLoadingMatches(false));
   };
 
-  // Fetch matches when league changes
-  useEffect(() => { loadMatchesForLeague(selectedLeague); }, [selectedLeague]);
+  // Fetch matches when selected leagues change
+  useEffect(() => { loadMatchesForLeagues(selectedLeagues); }, [selectedLeagues]);
 
   useEffect(() => {
     if (selectedSport !== 'SOCCER') { setApiLeagues([]); return; }
@@ -1195,12 +1208,12 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
   const handleSportChange = (sport) => {
     setSelectedSport(sport);
-    setSelectedLeague('All');
+    setSelectedLeagues(sport === 'NBA' ? ['NBA'] : []);
     setSearchQuery('');
   };
 
-  const handleLeagueChange = (league) => {
-    setSelectedLeague(league);
+  const handleLeagueChange = (leagues) => {
+    setSelectedLeagues(leagues);
     setSearchQuery('');
   };
 
@@ -1208,7 +1221,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
     setSyncing(true);
     try {
       await fetch(`${API_BASE_URL}/api/admin/sync`, { method: 'POST' });
-      loadMatchesForLeague(selectedLeague);
+      loadMatchesForLeagues(selectedLeagues);
     } catch (err) {
       alert(t.syncFailed(err.message));
     } finally {
@@ -1375,7 +1388,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
             <div className="grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 text-center">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Matches</p>
-                <p className="text-2xl font-black text-white tabular-nums">{filteredMatches.length}</p>
+                <p className="text-2xl font-black text-white tabular-nums">{searchedMatches.length}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Soon</p>
@@ -1403,7 +1416,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
             {selectedSport === 'SOCCER' && (
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t.leagueLabel}</label>
-                <LeagueDropdown value={selectedLeague} onChange={handleLeagueChange} t={t} leagues={apiLeagues} />
+                <LeagueDropdown value={selectedLeagues} onChange={handleLeagueChange} t={t} leagues={apiLeagues} />
               </div>
             )}
 
@@ -1431,11 +1444,11 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
           <div className="flex justify-center items-center mt-32">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
           </div>
-        ) : selectedLeague === 'All' || matches.length === 0 ? (
+        ) : selectedLeagues.length === 0 || matches.length === 0 ? (
           <div className="text-center text-gray-500 mt-32">
             <p className="text-4xl mb-4">{selectedSport === 'NBA' ? '🏀' : '⚽'}</p>
             <p className="text-lg font-semibold text-gray-400">
-              {selectedLeague === 'All' ? t.selectLeague : t.noMatches}
+              {selectedLeagues.length === 0 ? t.selectLeague : t.noMatches}
             </p>
           </div>
         ) : (

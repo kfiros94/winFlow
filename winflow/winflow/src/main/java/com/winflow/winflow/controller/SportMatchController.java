@@ -4,6 +4,7 @@ import com.winflow.winflow.entity.SportMatch;
 import com.winflow.winflow.service.SportMatchService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 @CrossOrigin(originPatterns = {"http://localhost:5173", "https://*.vercel.app"})
@@ -24,7 +25,13 @@ public class SportMatchController {
     @GetMapping
     public List<SportMatch> getMatches(@RequestParam(required = false) String league) {
         if (league != null && !league.isEmpty() && !league.equals("All")) {
-            return matchService.getAvailableMatchesForLeague(league);
+            List<String> selectedLeagues = Arrays.stream(league.split(","))
+                    .map(String::trim)
+                    .filter(name -> !name.isEmpty())
+                    .toList();
+            return selectedLeagues.size() == 1
+                    ? matchService.getAvailableMatchesForLeague(selectedLeagues.get(0))
+                    : matchService.getAvailableMatchesForLeagues(selectedLeagues);
         }
         return matchService.getAvailableMatches();
     }
