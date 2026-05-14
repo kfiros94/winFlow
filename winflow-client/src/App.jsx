@@ -555,7 +555,7 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
   useEffect(() => {
     if (!open) return undefined;
 
-    const isMobile = window.matchMedia('(max-width: 639px)').matches;
+    const isMobile = window.matchMedia('(max-width: 1023px)').matches;
     if (!isMobile) return undefined;
 
     const previousOverflow = document.body.style.overflow;
@@ -600,8 +600,8 @@ function LeagueDropdown({ value, onChange, t, leagues }) {
       {open && (
         <>
         <button type="button" aria-label={t.close} onClick={() => setOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm sm:hidden" />
-        <div className="fixed inset-x-3 bottom-3 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-gray-900 shadow-2xl sm:absolute sm:bottom-auto sm:start-0 sm:top-full sm:mt-2 sm:max-h-[30rem] sm:min-w-[340px] sm:rounded-2xl">
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden" />
+        <div className="fixed inset-x-3 bottom-3 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-gray-900 shadow-2xl lg:absolute lg:bottom-auto lg:start-0 lg:top-full lg:mt-2 lg:max-h-[30rem] lg:min-w-[340px] lg:rounded-2xl">
 
           <div className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900/95 p-3 backdrop-blur">
             <div className="mb-2 flex items-center justify-between">
@@ -1396,7 +1396,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
       <main className={`max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-8 ${currentPage !== 'matches' ? 'hidden' : ''}`}>
 
         {/* Premium board header */}
-        <section className="mb-8 overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 shadow-2xl shadow-black/30 md:p-7">
+        <section className="relative z-20 mb-8 overflow-visible rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 shadow-2xl shadow-black/30 md:p-7">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">
