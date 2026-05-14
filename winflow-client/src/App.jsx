@@ -1105,17 +1105,17 @@ function SportEmptyState({ selectedSport, t }) {
     <div className="mt-16 flex flex-col items-center justify-center text-center md:mt-20">
       <style>{`
         @keyframes mascotFloat { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-16px) rotate(1deg); } }
-        @keyframes orbitBall { from { transform: rotate(0deg) translateX(132px) rotate(0deg); } to { transform: rotate(360deg) translateX(132px) rotate(-360deg); } }
+        @keyframes orbitBall { from { transform: rotate(0deg) translateX(154px) rotate(0deg); } to { transform: rotate(360deg) translateX(154px) rotate(-360deg); } }
         @keyframes stadiumSweep { 0%, 100% { opacity: .25; transform: translateX(-45%) skewX(-18deg); } 50% { opacity: .75; transform: translateX(45%) skewX(-18deg); } }
         @keyframes scorePulse { 0%, 100% { box-shadow: 0 0 18px rgba(16,185,129,.25); } 50% { box-shadow: 0 0 38px rgba(16,185,129,.55); } }
       `}</style>
 
-      <div className={`relative mb-8 h-[28rem] w-full max-w-2xl overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br ${primaryGlow} via-slate-900/80 to-slate-950 shadow-2xl shadow-black/40`}>
+      <div className={`relative mb-8 h-[30rem] w-full max-w-3xl overflow-hidden rounded-[2.75rem] border border-white/10 bg-gradient-to-br ${primaryGlow} via-slate-900/80 to-slate-950 shadow-2xl shadow-black/40 md:h-[32rem]`}>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,255,255,0.13),transparent_34%),radial-gradient(circle_at_18%_78%,rgba(34,197,94,0.18),transparent_28%),radial-gradient(circle_at_82%_72%,rgba(59,130,246,0.16),transparent_30%)]" />
-        <div className="absolute inset-x-10 bottom-12 h-28 rounded-[50%] border-2 border-dashed border-white/15" />
+        <div className="absolute inset-x-8 bottom-12 h-32 rounded-[50%] border-2 border-dashed border-white/15 md:inset-x-12" />
         <div className="absolute inset-x-16 bottom-24 h-1 rounded-full bg-emerald-300/25 blur-sm" />
-        <div className="absolute left-1/2 top-8 h-64 w-64 -translate-x-1/2 rounded-full border border-white/10 bg-white/[0.03]" />
-        <div className="absolute left-1/2 top-12 h-52 w-52 -translate-x-1/2 rounded-full border border-emerald-300/20" style={{ animation: 'scorePulse 2.8s ease-in-out infinite' }} />
+        <div className="absolute left-1/2 top-7 h-72 w-72 -translate-x-1/2 rounded-full border border-white/10 bg-white/[0.03]" />
+        <div className="absolute left-1/2 top-11 h-60 w-60 -translate-x-1/2 rounded-full border border-emerald-300/20" style={{ animation: 'scorePulse 2.8s ease-in-out infinite' }} />
 
         <div className="absolute left-1/2 top-28 h-1 w-72 origin-center rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent blur-sm" style={{ animation: 'stadiumSweep 3.2s ease-in-out infinite' }} />
         <div className="absolute left-8 top-10 h-20 w-20 rounded-full border border-white/10 bg-white/[0.05] animate-pulse" />
@@ -1130,7 +1130,7 @@ function SportEmptyState({ selectedSport, t }) {
         <img
           src={winflowMascot}
           alt="WinFlow 3D mascot"
-          className="absolute bottom-0 left-1/2 z-10 h-[25rem] max-h-[92%] w-auto -translate-x-1/2 object-contain drop-shadow-[0_28px_32px_rgba(0,0,0,0.55)]"
+          className="absolute -bottom-2 left-1/2 z-10 h-[29rem] max-h-[98%] w-auto -translate-x-1/2 object-contain drop-shadow-[0_30px_34px_rgba(0,0,0,0.58)] md:h-[31rem]"
           style={{ animation: 'mascotFloat 3.6s ease-in-out infinite' }}
         />
 
