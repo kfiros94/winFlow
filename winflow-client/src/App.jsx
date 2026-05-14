@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import winflowLogo from './assets/winflowLogo.png';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const MIN_BET_AMOUNT = 10;
+const MAX_BET_AMOUNT = 1000;
+const BET_AMOUNT_STEP = 5;
 
 const fetchWithTimeout = async (url, options = {}, timeoutMs = 30000) => {
   const controller = new AbortController();
@@ -49,11 +52,12 @@ const TRANSLATIONS = {
     noLeaguesFound:   'לא נמצאו ליגות',
     close:            'סגור',
     stake:            ':הימור',
-    minBetError:      'הימור מינימלי הוא 10 מטבעות',
+    betAmountError:   'ההימור חייב להיות בין 10 ל-1,000 מטבעות ובקפיצות של 5',
     sportLabel:       'ספורט',
     leagueLabel:      'ליגה',
     noMatches:        'אין משחקים קרובים ב-5 הימים הבאים.',
-    selectLeague:     'בחר ליגה מהתפריט כדי לראות משחקים 👇',
+    selectLeague:     'בחר ליגה כדי להתחיל',
+    selectLeagueHint: 'הכדור כבר בתנועה — בחר ליגה מהתפריט ונציג לך את המשחקים החמים.',
     today:            'היום',
     tomorrow:         'מחר',
     matchCount:       (n) => `${n} ${n === 1 ? 'משחק' : 'משחקים'}`,
@@ -131,11 +135,12 @@ const TRANSLATIONS = {
     noLeaguesFound:   'No leagues found',
     close:            'Close',
     stake:            'Stake:',
-    minBetError:      'Minimum bet is 10 coins',
+    betAmountError:   'Bet must be 10–1,000 coins in steps of 5',
     sportLabel:       'Sport',
     leagueLabel:      'League',
     noMatches:        'No upcoming matches in the next 5 days.',
-    selectLeague:     'Select a league from the dropdown to see matches 👇',
+    selectLeague:     'Choose a league to get started',
+    selectLeagueHint: 'The ball is already moving — pick a league and we’ll show the hottest matches.',
     today:            'Today',
     tomorrow:         'Tomorrow',
     matchCount:       (n) => `${n} match${n !== 1 ? 'es' : ''}`,
@@ -212,7 +217,7 @@ const LEAGUE_META = {
   'Serie A':                 { emoji: '🇮🇹' },
   'Ligue 1':                 { emoji: '🇫🇷' },
   'Bundesliga':              { emoji: '🇩🇪' },
-  'Israeli Premier League':  { emoji: '🇮🇱' },
+  'MLS':                    { emoji: '🇺🇸' },
   'UEFA Nations League':     { emoji: '🏆' },
   'FIFA World Cup':          { emoji: '🌍' },
 };
@@ -260,8 +265,6 @@ const LEAGUE_TO_COUNTRY = {
   'Belgian First Division B':      { country: 'Belgium',       flagUrl: 'https://flagcdn.com/be.svg' },
   // ── Turkey ──
   'Super Lig':                     { country: 'Turkey',        flagUrl: 'https://flagcdn.com/tr.svg' },
-  // ── Israel ──
-  'Israeli Premier League':        { country: 'Israel',        flagUrl: 'https://flagcdn.com/il.svg' },
   // ── Brazil ──
   'Brazil Série A':                { country: 'Brazil',        flagUrl: 'https://flagcdn.com/br.svg' },
   'Brazil Série B':                { country: 'Brazil',        flagUrl: 'https://flagcdn.com/br.svg' },
@@ -331,8 +334,7 @@ function getLeagueMeta(leagueName) {
     return { country: 'Belgium',       flagUrl: 'https://flagcdn.com/be.svg' };
   if (l.includes('turkey') || l.includes('turkish') || l.includes('süper') || l.includes('super lig'))
     return { country: 'Turkey',        flagUrl: 'https://flagcdn.com/tr.svg' };
-  if (l.includes('israel') || l.includes('israeli'))
-    return { country: 'Israel',        flagUrl: 'https://flagcdn.com/il.svg' };
+
   if (l.includes('brazil') || l.includes('brasileiro') || l.includes('série'))
     return { country: 'Brazil',        flagUrl: 'https://flagcdn.com/br.svg' };
   if (l.includes('argentina') || l.includes('argentine'))
@@ -1055,7 +1057,7 @@ function MyBetsPage({ currentUser }) {
 // ─────────────────────────────────────────────
 // STARTING SOON PAGE
 // ─────────────────────────────────────────────
-function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, betAmountError }) {
+function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, onBetAmountBlur, onBetAmountStep, betAmountError }) {
   const { t, dir } = useLang();
   const soonMatches = getStartingSoonMatches(matches);
 
@@ -1064,8 +1066,12 @@ function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, betAmo
       {/* Bet amount input — same as main page */}
       <div className="flex items-center gap-3 mb-8">
         <label className="text-gray-400 text-sm">{t.stake}</label>
-        <input type="number" min={10} value={betAmount} onChange={onBetAmountChange}
-          className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-white w-24 text-sm focus:outline-none focus:border-blue-500" />
+        <div className="flex items-center rounded-xl border border-gray-600 bg-gray-800">
+          <button type="button" onClick={() => onBetAmountStep(-BET_AMOUNT_STEP)} className="px-3 py-1.5 text-gray-300 hover:text-white">−</button>
+          <input type="number" min={MIN_BET_AMOUNT} max={MAX_BET_AMOUNT} step={BET_AMOUNT_STEP} value={betAmount} onChange={onBetAmountChange} onBlur={onBetAmountBlur}
+            className="w-24 bg-transparent px-2 py-1.5 text-center text-sm font-bold text-white outline-none" />
+          <button type="button" onClick={() => onBetAmountStep(BET_AMOUNT_STEP)} className="px-3 py-1.5 text-gray-300 hover:text-white">+</button>
+        </div>
         <span className="text-yellow-500 text-sm">🪙</span>
         {betAmountError && <span className="text-red-400 text-xs">{betAmountError}</span>}
       </div>
@@ -1083,6 +1089,36 @@ function StartingSoonPage({ matches, betAmount, onBet, onBetAmountChange, betAmo
         </div>
       )}
     </main>
+  );
+}
+
+function SportEmptyState({ selectedSport, t }) {
+  const isBasketball = selectedSport === 'NBA';
+  const ball = isBasketball ? '🏀' : '⚽';
+  const glow = isBasketball ? 'from-orange-500/25' : 'from-emerald-500/25';
+
+  return (
+    <div className="mt-24 flex flex-col items-center justify-center text-center">
+      <div className={`relative mb-8 h-52 w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${glow} via-slate-900/70 to-slate-950 shadow-2xl shadow-black/30`}>
+        <div className="absolute inset-x-8 bottom-10 h-16 rounded-[50%] border-2 border-dashed border-white/10" />
+        <div className="absolute bottom-14 left-1/2 h-1.5 w-48 -translate-x-1/2 rounded-full bg-emerald-300/20 blur-sm" />
+
+        <div className="absolute left-8 top-8 h-16 w-16 rounded-full border border-white/10 bg-white/[0.04] animate-pulse" />
+        <div className="absolute right-10 top-12 h-10 w-10 rounded-full border border-sky-300/20 bg-sky-300/10 animate-ping" />
+
+        <div className="absolute left-1/2 top-14 -translate-x-1/2 animate-bounce text-7xl drop-shadow-[0_18px_24px_rgba(0,0,0,0.45)]">
+          {ball}
+        </div>
+
+        <div className="absolute bottom-8 left-10 h-16 w-2 rotate-12 rounded-full bg-white/10" />
+        <div className="absolute bottom-8 right-10 h-16 w-2 -rotate-12 rounded-full bg-white/10" />
+        <div className="absolute bottom-16 left-10 right-10 h-2 rounded-full bg-white/10" />
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950 to-transparent" />
+      </div>
+
+      <h2 className="text-2xl font-black text-white">{t.selectLeague}</h2>
+      <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">{t.selectLeagueHint}</p>
+    </div>
   );
 }
 
@@ -1261,16 +1297,51 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const dayGroups = groupByDayAndLeague(searchedMatches, t, lang);
   const startingSoonCount = getStartingSoonMatches(searchedMatches).length;
 
+  const normalizeBetAmount = (rawValue) => {
+    const numeric = Number(rawValue);
+    if (!Number.isFinite(numeric)) return MIN_BET_AMOUNT;
+    const clamped = Math.min(MAX_BET_AMOUNT, Math.max(MIN_BET_AMOUNT, numeric));
+    return Math.round(clamped / BET_AMOUNT_STEP) * BET_AMOUNT_STEP;
+  };
+
+  const validateBetAmount = (amount) => {
+    const valid = Number.isFinite(amount)
+      && amount >= MIN_BET_AMOUNT
+      && amount <= MAX_BET_AMOUNT
+      && amount % BET_AMOUNT_STEP === 0;
+    setBetAmountError(valid ? '' : t.betAmountError);
+    return valid;
+  };
+
   const handleBetAmountChange = (e) => {
-    const val = Number(e.target.value);
+    const rawValue = e.target.value;
+    const val = rawValue === '' ? '' : Number(rawValue);
     setBetAmount(val);
-    setBetAmountError(val < 10 ? t.minBetError : '');
+    if (rawValue === '') {
+      setBetAmountError(t.betAmountError);
+      return;
+    }
+    validateBetAmount(val);
+  };
+
+  const handleBetAmountBlur = () => {
+    const normalized = normalizeBetAmount(betAmount);
+    setBetAmount(normalized);
+    validateBetAmount(normalized);
+  };
+
+  const adjustBetAmount = (delta) => {
+    const next = normalizeBetAmount(Number(betAmount || MIN_BET_AMOUNT) + delta);
+    setBetAmount(next);
+    validateBetAmount(next);
   };
 
   // Opens the confirmation modal — no API call yet
   const handleBet = (matchId, prediction, teamName) => {
-    if (betAmount < 10) { setToast(t.minBetAlert); return; }
-    if (currentUser.coinBalance < betAmount) { setToast(t.notEnoughCoins); return; }
+    const normalized = normalizeBetAmount(betAmount);
+    setBetAmount(normalized);
+    if (!validateBetAmount(normalized)) { setToast(t.betAmountError); return; }
+    if (currentUser.coinBalance < normalized) { setToast(t.notEnoughCoins); return; }
     setPendingBet({ matchId, prediction, teamName });
   };
 
@@ -1278,16 +1349,18 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
   const confirmBet = async () => {
     if (!pendingBet) return;
     const { matchId, prediction, teamName } = pendingBet;
+    const normalizedBetAmount = normalizeBetAmount(betAmount);
+    if (!validateBetAmount(normalizedBetAmount)) { setToast(t.betAmountError); return; }
     setConfirmLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/guesses/place`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId, prediction, coinAmount: betAmount, userId: currentUser.id }),
+        body: JSON.stringify({ matchId, prediction, coinAmount: normalizedBetAmount, userId: currentUser.id }),
       });
       if (!res.ok) throw new Error(await res.text() || t.somethingWrong);
       setPendingBet(null);
-      setToast(t.betPlaced(betAmount, teamName));
+      setToast(t.betPlaced(normalizedBetAmount, teamName));
       const updatedUser = await (await fetch(`${API_BASE_URL}/api/users/${currentUser.id}`)).json();
       onBalanceUpdate(updatedUser.coinBalance);
     } catch (err) {
@@ -1390,7 +1463,7 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
 
       {currentPage === 'starting-soon' && (
         <StartingSoonPage matches={matches} betAmount={betAmount} onBet={handleBet}
-          onBetAmountChange={handleBetAmountChange} betAmountError={betAmountError} />
+          onBetAmountChange={handleBetAmountChange} onBetAmountBlur={handleBetAmountBlur} onBetAmountStep={adjustBetAmount} betAmountError={betAmountError} />
       )}
 
       <main className={`max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-8 ${currentPage !== 'matches' ? 'hidden' : ''}`}>
@@ -1451,9 +1524,11 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
             {/* Bet Amount */}
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t.stake}</label>
-              <div className="flex items-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-3 py-2">
-                <input type="number" min={10} value={betAmount} onChange={handleBetAmountChange}
-                  className="w-20 bg-transparent text-sm font-black text-white outline-none" />
+              <div className="flex items-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-2 py-2">
+                <button type="button" onClick={() => adjustBetAmount(-BET_AMOUNT_STEP)} className="h-8 w-8 rounded-xl text-lg font-black text-yellow-100 transition hover:bg-yellow-300/15">−</button>
+                <input type="number" min={MIN_BET_AMOUNT} max={MAX_BET_AMOUNT} step={BET_AMOUNT_STEP} value={betAmount} onChange={handleBetAmountChange} onBlur={handleBetAmountBlur}
+                  className="w-20 bg-transparent text-center text-sm font-black text-white outline-none" />
+                <button type="button" onClick={() => adjustBetAmount(BET_AMOUNT_STEP)} className="h-8 w-8 rounded-xl text-lg font-black text-yellow-100 transition hover:bg-yellow-300/15">+</button>
                 <span className="text-yellow-300">🪙</span>
               </div>
               {betAmountError && <span className="text-red-400 text-xs">{betAmountError}</span>}
@@ -1466,12 +1541,12 @@ function BettingApp({ currentUser, onLogout, onBalanceUpdate }) {
           <div className="flex justify-center items-center mt-32">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
           </div>
-        ) : selectedLeagues.length === 0 || matches.length === 0 ? (
+        ) : selectedLeagues.length === 0 ? (
+          <SportEmptyState selectedSport={selectedSport} t={t} />
+        ) : matches.length === 0 ? (
           <div className="text-center text-gray-500 mt-32">
             <p className="text-4xl mb-4">{selectedSport === 'NBA' ? '🏀' : '⚽'}</p>
-            <p className="text-lg font-semibold text-gray-400">
-              {selectedLeagues.length === 0 ? t.selectLeague : t.noMatches}
-            </p>
+            <p className="text-lg font-semibold text-gray-400">{t.noMatches}</p>
           </div>
         ) : (
           <div className="space-y-10">

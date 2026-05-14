@@ -58,8 +58,7 @@ public class SportMatchService {
         new LeagueConfig("soccer_finland_veikkausliiga",           "Finnish Veikkausliiga",          SportMatch.SportType.SOCCER),
         new LeagueConfig("soccer_league_of_ireland",               "League of Ireland",              SportMatch.SportType.SOCCER),
 
-        // Israel, Americas and Asia-Pacific
-        new LeagueConfig("soccer_israel_premier_league",           "Israeli Premier League",         SportMatch.SportType.SOCCER),
+        // Americas and Asia-Pacific
         new LeagueConfig("soccer_brazil_campeonato",               "Brazil Série A",                 SportMatch.SportType.SOCCER),
         new LeagueConfig("soccer_brazil_serie_b",                  "Brazil Série B",                 SportMatch.SportType.SOCCER),
         new LeagueConfig("soccer_argentina_primera_division",      "Primera División",               SportMatch.SportType.SOCCER),
@@ -88,7 +87,7 @@ public class SportMatchService {
         "Serie A",
         "Bundesliga",
         "Ligue 1",
-        "Israeli Premier League"
+        "MLS"
     );
 
     private final SportMatchRepository matchRepository;

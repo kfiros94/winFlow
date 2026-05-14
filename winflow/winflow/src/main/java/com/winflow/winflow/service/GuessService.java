@@ -43,12 +43,20 @@ public class GuessService {
         if (match.getStatus() != SportMatch.MatchStatus.PENDING) {
             throw new RuntimeException("This match has already started or finished!");
         }
-        //4. Rule check: Does the user have enough coins?
+        //4. Rule check: Bet amount must match WinFlow limits.
+        if (request.coinAmount() == null
+                || request.coinAmount() < 10
+                || request.coinAmount() > 1000
+                || request.coinAmount() % 5 != 0) {
+            throw new RuntimeException("Bet amount must be between 10 and 1000 coins in steps of 5.");
+        }
+
+        //5. Rule check: Does the user have enough coins?
         if (user.getCoinBalance() < request.coinAmount()) {
             throw new RuntimeException("Insufficient coins! You only have: " + user.getCoinBalance());
         }
 
-        //5. Deduct the coins from the user's wallet
+        //6. Deduct the coins from the user's wallet
         user.setCoinBalance(user.getCoinBalance() - request.coinAmount());
         userRepository.save(user); // Save the updated wallet
 
