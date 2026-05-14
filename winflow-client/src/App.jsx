@@ -3,6 +3,16 @@ import winflowLogo from './assets/winflowLogo.png';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 30000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 // ─────────────────────────────────────────────
 // TRANSLATIONS
 // ─────────────────────────────────────────────
@@ -678,16 +688,28 @@ function AuthScreen({ onAuthSuccess }) {
       ? { username, password }
       : { username, email, password };
     try {
-      const res = await fetch(url, {
+      const requestOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      });
+      };
+
+      let res;
+      try {
+        res = await fetchWithTimeout(url, requestOptions, 35000);
+      } catch (networkErr) {
+        if (mode !== 'login') throw networkErr;
+        // Render free instances can be slow on the first request. Retry login once
+        // so the button does not feel permanently stuck during backend wake-up.
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        res = await fetchWithTimeout(url, requestOptions, 35000);
+      }
+
       if (!res.ok) throw new Error(await res.text() || t.somethingWrong);
       onAuthSuccess(await res.json());
     } catch (err) {
-      const message = err instanceof TypeError
-        ? 'The server is waking up. Please wait 30 seconds and try again.'
+      const message = err instanceof TypeError || err.name === 'AbortError'
+        ? 'The server did not respond. Please refresh and try again in a few seconds.'
         : err.message;
       setError(message);
     } finally {
